@@ -1,0 +1,14 @@
+name = "qazi-car-calc"
+main = "worker.js"
+compatibility_date = "2026-04-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+# Import calc.mjs as raw text so the worker can serve it at /calc.mjs.
+# Node tests import the same file as a real module.
+[[rules]]
+type = "Text"
+globs = ["**/*.mjs"]
+fallthrough = true

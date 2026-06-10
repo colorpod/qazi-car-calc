@@ -1,0 +1,55 @@
+name: Deploy qazi-car-calc Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "worker.js"
+      - "calc.mjs"
+      - "wrangler.toml"
+      - "tests/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: qazi-car-calc-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Test and deploy Cloudflare Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Unit tests
+        run: node --test tests/calc.test.mjs
+
+      - name: Check deploy auth
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Repo secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set."
+            echo "Set them (same values as colorpod/link) to enable auto-deploy from this repo."
+            exit 1
+          fi
+
+      - name: Deploy
+        run: npx --yes wrangler@4.81.0 deploy
+
+      - name: Verify live
+        run: |
+          curl -fsS https://qazi-car-calc.waqasqazi.workers.dev/health | grep -q '"ok":true'
+          curl -fsS https://qazi-car-calc.waqasqazi.workers.dev/ | grep -q "Car Deal Gauge"
+          curl -fsS https://qazi-car-calc.waqasqazi.workers.dev/calc.mjs | grep -q "scoreLease"

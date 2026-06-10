@@ -1,0 +1,12 @@
+{
+  "name": "qazi-car-calc",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Car Deal Gauge — lease + finance deal checker (Cloudflare Worker)",
+  "scripts": {
+    "test": "node --test tests/calc.test.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}
