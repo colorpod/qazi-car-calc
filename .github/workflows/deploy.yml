@@ -38,17 +38,23 @@ jobs:
         run: node --test tests/calc.test.mjs
 
       - name: Check deploy auth
+        id: auth
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "Repo secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set."
             echo "Set them (same values as colorpod/link) to enable auto-deploy from this repo."
-            exit 1
+            echo "Until then, deploy via: gh workflow run deploy-car-calc.yml -R colorpod/link"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Deploy
+        if: steps.auth.outputs.skip == 'false'
         run: npx --yes wrangler@4.81.0 deploy
 
       - name: Verify live
+        if: steps.auth.outputs.skip == 'false'
         run: |
           curl -fsS https://qazi-car-calc.waqasqazi.workers.dev/health | grep -q '"ok":true'
           curl -fsS https://qazi-car-calc.waqasqazi.workers.dev/ | grep -q "Car Deal Gauge"
