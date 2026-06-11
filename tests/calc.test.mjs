@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   CONFIG, lerpCurve, estimateRegistration, verdictFor,
   leaseQuote, scoreLease, financeQuote, scoreFinance,
-  marketApr, resolveZip, docFeeCapForState, solveLeasePrice, solveFinancePrice,
+  marketApr, resolveZip, docFeeCapForState,
+  solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown,
 } from '../calc.mjs';
 
 const close = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, (msg || '') + ' got ' + a + ' want ' + b + ' ±' + tol);
@@ -125,6 +126,35 @@ test('solve for target monthly payment (lease + finance)', () => {
   const tp = solveFinancePrice(tradeIn, 550);
   const tq = financeQuote({ ...tradeIn, price: tp });
   close(tq.monthly, 550, 1.0, 'trade-credit solve still hits target');
+});
+
+test('solve for down payment hits target on a known car (lease + finance)', () => {
+  const leaseIn = {
+    msrp: 55000, price: 51000, rebates: 0, acqFee: 695, docFee: 85, govFees: 600,
+    mf: 0.00220, residualPct: 58, term: 36, taxPct: 7.75,
+  };
+  const ld = solveLeaseDown(leaseIn, 600);
+  const lq = leaseQuote({ ...leaseIn, down: ld });
+  close(lq.payment, 600, 1.0, 'solved lease down hits target payment');
+
+  const finIn = {
+    isUsed: false, msrp: 50000, price: 48000, rebates: 0, tradeEquity: 0, apr: 6.0,
+    term: 60, docFee: 85, govFees: 595, addons: 0, taxPct: 7.75,
+  };
+  const fd = solveFinanceDown(finIn, 600);
+  const fq = financeQuote({ ...finIn, down: fd });
+  close(fq.monthly, 600, 1.0, 'solved finance down hits target payment');
+
+  // Trade-credit state: down solve still exact.
+  const fd2 = solveFinanceDown({ ...finIn, tradeEquity: 8000, taxTradeCredit: true }, 600);
+  const fq2 = financeQuote({ ...finIn, tradeEquity: 8000, taxTradeCredit: true, down: fd2 });
+  close(fq2.monthly, 600, 1.0, 'down solve exact with trade credit');
+
+  // A generous target on a cheap car => negative down (no money needed).
+  const cheap = solveFinanceDown({ ...finIn, price: 12000 }, 600);
+  assert.ok(cheap < 0, 'cheap car under target needs no down, got ' + cheap);
+  assert.equal(solveFinanceDown(finIn, 0), null);
+  assert.equal(solveLeaseDown({ ...leaseIn, price: 0 }, 600), null);
 });
 
 test('lease math: standard CA example', () => {

@@ -297,6 +297,23 @@ export function solveLeasePrice(i, targetPayment) {
   return Math.round(price);
 }
 
+// Inverse: the down payment (cap-cost reduction) that produces a target monthly
+// payment on a KNOWN car (price held fixed). Returns the dollar down payment,
+// which may be negative (meaning $0 down already lands under the target), or
+// null if inputs are insufficient.
+export function solveLeaseDown(i, targetPayment) {
+  const taxRate = (i.taxPct || 0) / 100;
+  if (!(i.msrp > 0) || !(i.price > 0) || !(i.term > 0) || !(i.residualPct > 0) || !(i.mf >= 0) || !(targetPayment > 0)) {
+    return null;
+  }
+  const residual = i.msrp * (i.residualPct / 100);
+  const basePayment = targetPayment / (1 + taxRate);
+  const k = 1 / i.term + i.mf;
+  const adjCap = (basePayment - residual * (i.mf - 1 / i.term)) / k;
+  const capReduction = i.price + (i.acqFee || 0) - adjCap;
+  return Math.round(capReduction - (i.rebates || 0));
+}
+
 const LEASE_CURVES = {
   // effective monthly cost as % of MSRP (down payment and fees spread in)
   effPct:   [[0.65, 100], [0.8, 90], [1.0, 70], [1.25, 50], [1.5, 32], [2.0, 10]],
@@ -443,6 +460,25 @@ export function solveFinancePrice(i, targetPayment) {
   const price = (targetAF - k) / (1 + taxRate);
   if (!(price > 0)) return null;
   return Math.round(price);
+}
+
+// Inverse: the down payment that produces a target monthly payment on a KNOWN
+// car (price held fixed). Returns the dollar down payment, which may be negative
+// (meaning $0 down already lands under the target), or null if insufficient.
+export function solveFinanceDown(i, targetPayment) {
+  const taxRate = (i.taxPct || 0) / 100;
+  if (!(i.price > 0) || !(i.term > 0) || !(i.apr >= 0) || !(targetPayment > 0)) return null;
+  const r = i.apr / 100 / 12;
+  const n = i.term;
+  const factor = (r === 0) ? (1 / n) : (r / (1 - Math.pow(1 + r, -n)));
+  const targetAF = targetPayment / factor;
+  const taxableTrade = (i.taxTradeCredit && (i.tradeEquity || 0) > 0) ? Math.min(i.tradeEquity, i.price) : 0;
+  const salesTax = Math.max(0, i.price - taxableTrade) * taxRate;
+  const docWithTax = (i.docFee || 0) * (1 + taxRate);
+  // amountFinanced = price + salesTax + docWithTax + gov + addons - down - rebates - trade
+  const down = i.price + salesTax + docWithTax + (i.govFees || 0) + (i.addons || 0)
+    - (i.rebates || 0) - (i.tradeEquity || 0) - targetAF;
+  return Math.round(down);
 }
 
 const FIN_CURVES = {

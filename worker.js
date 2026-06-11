@@ -82,8 +82,10 @@ const PAGE_HTML = `<!doctype html>
   .readout { padding: 9px 10px; background: var(--card2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 14px; min-height: 38px; display: flex; align-items: center; }
   .readout.muted { color: var(--muted); }
   .lever { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-bottom: 11px; }
-  .lever input { width: 100%; margin-top: 8px; padding: 9px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 15px; }
-  .lever input:focus { outline: none; border-color: var(--accent); }
+  .lever .leverrow { display: flex; gap: 8px; margin-top: 8px; }
+  .lever input, .lever select { flex: 1; width: 100%; padding: 9px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 15px; }
+  .lever input:focus, .lever select:focus { outline: none; border-color: var(--accent); }
+  .lever .off { opacity: 0.4; }
   .solvebox { background: rgba(244,129,32,0.08); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px; color: var(--text); }
   .solvebox b { color: var(--accent); }
   .v-great { color: var(--great); } .v-good { color: var(--good); } .v-fair { color: var(--fair); }
@@ -136,8 +138,14 @@ const PAGE_HTML = `<!doctype html>
         </div>
         <div class="lever">
           <label class="tlabel"><input id="l_target_on" type="checkbox"> Solve for a target monthly payment</label>
-          <input id="l_target" type="number" step="10" placeholder="600 (your max $/mo)" class="off" disabled>
-          <div class="hint">We back-solve the highest selling price that hits this payment. Selling price below becomes the answer.</div>
+          <div class="leverrow">
+            <input id="l_target" type="number" step="10" placeholder="600 ($/mo max)" class="off" disabled>
+            <select id="l_solvefor" class="off" disabled>
+              <option value="down">&rarr; find down payment</option>
+              <option value="price">&rarr; find max price</option>
+            </select>
+          </div>
+          <div class="hint" id="l_target_hint">Enter the car price + your max $/mo; we solve the down payment.</div>
         </div>
         <div class="row">
           <div class="field"><label>MSRP (sticker) $</label><input id="l_msrp" type="number" step="100" placeholder="50000"></div>
@@ -145,7 +153,7 @@ const PAGE_HTML = `<!doctype html>
         </div>
         <div class="row">
           <div class="field"><label>Rebates / incentives $</label><input id="l_rebates" type="number" step="100" value="0"></div>
-          <div class="field"><label>Down payment (cap reduction) $</label><input id="l_down" type="number" step="100" value="0"><div class="hint">$0 down is the smart lease structure.</div></div>
+          <div class="field"><label id="l_down_label">Down payment (cap reduction) $</label><input id="l_down" type="number" step="100" value="0"><div class="hint">$0 down is the smart lease structure.</div></div>
         </div>
         <div class="row">
           <div class="field"><label>Money factor</label><input id="l_mf" type="number" step="0.00001" placeholder="0.00225"><div class="hint" id="l_mf_hint">x2400 = APR. Ask the dealer or check Leasehackr forums.</div></div>
@@ -186,8 +194,14 @@ const PAGE_HTML = `<!doctype html>
         </div>
         <div class="lever">
           <label class="tlabel"><input id="f_target_on" type="checkbox"> Solve for a target monthly payment</label>
-          <input id="f_target" type="number" step="10" placeholder="550 (your max $/mo)" class="off" disabled>
-          <div class="hint">We back-solve the highest price that hits this payment. Negotiated price below becomes the answer.</div>
+          <div class="leverrow">
+            <input id="f_target" type="number" step="10" placeholder="550 ($/mo max)" class="off" disabled>
+            <select id="f_solvefor" class="off" disabled>
+              <option value="down">&rarr; find down payment</option>
+              <option value="price">&rarr; find max price</option>
+            </select>
+          </div>
+          <div class="hint" id="f_target_hint">Enter the car price + your max $/mo; we solve the down payment.</div>
         </div>
         <div class="row">
           <div class="field"><label id="f_msrp_label">MSRP (sticker) $</label><input id="f_msrp" type="number" step="100" placeholder="43000"></div>
@@ -198,7 +212,7 @@ const PAGE_HTML = `<!doctype html>
           <div class="field"><label>Trade-in equity $</label><input id="f_trade" type="number" step="100" value="0"><div class="hint">Negative if you owe more than it is worth.</div></div>
         </div>
         <div class="row">
-          <div class="field"><label>Down payment $</label><input id="f_down" type="number" step="100" value="0"></div>
+          <div class="field"><label id="f_down_label">Down payment $</label><input id="f_down" type="number" step="100" value="0"></div>
           <div class="field"><label>APR %</label><input id="f_apr" type="number" step="0.05" placeholder="6.5"></div>
         </div>
         <div class="row">
@@ -269,7 +283,7 @@ const PAGE_HTML = `<!doctype html>
 </div>
 
 <script type="module">
-import { CONFIG, estimateRegistration, resolveZip, marketApr, solveLeasePrice, solveFinancePrice, scoreLease, scoreFinance } from '/calc.mjs';
+import { CONFIG, estimateRegistration, resolveZip, marketApr, solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown, scoreLease, scoreFinance } from '/calc.mjs';
 
 var $ = function (id) { return document.getElementById(id); };
 var mode = 'lease';
@@ -384,19 +398,33 @@ function resolveAndLabel(prefix) {
   return loc;
 }
 
-// Flip the price field to read-only (solved) or editable, and enable/disable
-// the target input, when the target-payment lever is toggled.
-function setTargetUI(prefix, on) {
+// Wire the lever UI: enable the target + solve-for controls, and make whichever
+// field is being solved (price OR down payment) read-only, the other editable.
+function setTargetUI(prefix, on, solveFor) {
   var t = $(prefix + '_target');
-  t.disabled = !on;
-  t.classList.toggle('off', !on);
+  t.disabled = !on; t.classList.toggle('off', !on);
+  var sel = $(prefix + '_solvefor');
+  sel.disabled = !on; sel.classList.toggle('off', !on);
+  var solvingPrice = on && solveFor === 'price';
+  var solvingDown = on && solveFor === 'down';
   var p = $(prefix + '_price');
-  p.readOnly = on;
-  p.classList.toggle('off', on);
-  var lbl = $(prefix + '_price_label');
-  if (lbl) lbl.textContent = on
+  p.readOnly = solvingPrice; p.classList.toggle('off', solvingPrice);
+  var d = $(prefix + '_down');
+  d.readOnly = solvingDown; d.classList.toggle('off', solvingDown);
+  var pl = $(prefix + '_price_label');
+  if (pl) pl.textContent = solvingPrice
     ? (prefix === 'l' ? 'Selling price (solved) $' : 'Price (solved) $')
     : (prefix === 'l' ? 'Negotiated selling price $' : 'Negotiated price $');
+  var dl = $(prefix + '_down_label');
+  if (dl) dl.textContent = solvingDown
+    ? 'Down payment (solved) $'
+    : (prefix === 'l' ? 'Down payment (cap reduction) $' : 'Down payment $');
+  var hint = $(prefix + '_target_hint');
+  if (hint) hint.textContent = !on
+    ? 'Lock a monthly payment and we solve the rest.'
+    : (solveFor === 'down'
+        ? 'Enter the car price + your max $/mo; we solve the down payment.'
+        : 'Enter your down + max $/mo; we solve the highest car price.');
 }
 
 function recalcLease() {
@@ -411,9 +439,14 @@ function recalcLease() {
   var stateLabel = loc ? loc.name : 'California';
 
   var targetOn = $('l_target_on').checked;
-  setTargetUI('l', targetOn);
+  var solveFor = $('l_solvefor').value;
+  setTargetUI('l', targetOn, solveFor);
   var note = null;
-  if (targetOn) {
+  // Auto-estimate registration from the price whenever price is a known input.
+  if (zipauto && (!targetOn || solveFor === 'down') && num('l_price') > 0) {
+    $('l_reg').value = estimateRegistration(num('l_price'), state);
+  }
+  if (targetOn && solveFor === 'price') {
     var solved = solveLeasePrice({
       msrp: num('l_msrp'), residualPct: num('l_residual'), mf: num('l_mf'),
       term: num('l_term'), acqFee: num('l_acq'), down: num('l_down'),
@@ -426,8 +459,21 @@ function recalcLease() {
       $('l_price').value = '';
       note = 'That payment is not reachable with these terms. Lower the money factor, shorten the term, or raise the target.';
     }
-  } else if (zipauto && num('l_price') > 0) {
-    $('l_reg').value = estimateRegistration(num('l_price'), state);
+  } else if (targetOn && solveFor === 'down') {
+    var dn = solveLeaseDown({
+      msrp: num('l_msrp'), price: num('l_price'), residualPct: num('l_residual'),
+      mf: num('l_mf'), term: num('l_term'), acqFee: num('l_acq'),
+      rebates: num('l_rebates'), taxPct: taxPct,
+    }, num('l_target'));
+    if (dn == null) {
+      note = 'Enter the car price (plus MSRP, money factor, residual, term) and we solve the down payment.';
+    } else if (dn <= 0) {
+      $('l_down').value = 0;
+      note = 'At ' + money(num('l_target')) + '/mo you need <b>$0 down</b> — even nothing down lands under your target.';
+    } else {
+      $('l_down').value = Math.round(dn);
+      note = 'To hit ' + money(num('l_target')) + '/mo on this car, put about <b>' + money(dn) + '</b> down.';
+    }
   }
   var price = num('l_price');
   var govFees = togVal('l_reg_on', 'l_reg');
@@ -480,11 +526,15 @@ function recalcFinance() {
   $('f_bench_hint').textContent = 'Market avg for your tier/term (' + CONFIG.benchmarksAsOf + '). Override with a real quote.';
 
   var targetOn = $('f_target_on').checked;
-  setTargetUI('f', targetOn);
+  var solveFor = $('f_solvefor').value;
+  setTargetUI('f', targetOn, solveFor);
   var note = null;
-  // Registration is fixed for the solve so the resulting payment matches exactly.
+  // Auto-estimate registration from the price whenever price is a known input.
+  if (zipauto && (!targetOn || solveFor === 'down') && num('f_price') > 0) {
+    $('f_reg').value = estimateRegistration(num('f_price'), state);
+  }
   var govFees = togVal('f_reg_on', 'f_reg');
-  if (targetOn) {
+  if (targetOn && solveFor === 'price') {
     var solved = solveFinancePrice({
       docFee: num('f_doc'), govFees: govFees, addons: num('f_addons'),
       down: num('f_down'), rebates: num('f_rebates'), tradeEquity: num('f_trade'),
@@ -497,9 +547,21 @@ function recalcFinance() {
       $('f_price').value = '';
       note = 'That payment is not reachable with these terms. Raise the down payment, extend the term, or lift the target.';
     }
-  } else if (zipauto && num('f_price') > 0) {
-    $('f_reg').value = estimateRegistration(num('f_price'), state);
-    govFees = togVal('f_reg_on', 'f_reg');
+  } else if (targetOn && solveFor === 'down') {
+    var dn = solveFinanceDown({
+      price: num('f_price'), docFee: num('f_doc'), govFees: govFees, addons: num('f_addons'),
+      rebates: num('f_rebates'), tradeEquity: num('f_trade'), taxPct: taxPct,
+      apr: num('f_apr'), term: num('f_term'), taxTradeCredit: tradeCredit,
+    }, num('f_target'));
+    if (dn == null) {
+      note = 'Enter the car price, APR, and term and we solve the down payment.';
+    } else if (dn <= 0) {
+      $('f_down').value = 0;
+      note = 'At ' + money(num('f_target')) + '/mo you need <b>$0 down</b> — even nothing down lands under your target.';
+    } else {
+      $('f_down').value = Math.round(dn);
+      note = 'To hit ' + money(num('f_target')) + '/mo on this car, put about <b>' + money(dn) + '</b> down.';
+    }
   }
 
   var inputs = {
@@ -533,8 +595,8 @@ function recalc() {
 }
 
 // ------------------------------------------------------------- wiring ----
-var LEASE_IDS = ['l_zip','l_target','l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_tax'];
-var FIN_IDS = ['f_zip','f_target','f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_reg','f_tax'];
+var LEASE_IDS = ['l_zip','l_target','l_solvefor','l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_tax'];
+var FIN_IDS = ['f_zip','f_target','f_solvefor','f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_reg','f_tax'];
 var CHECK_IDS = ['l_zipauto','f_zipauto','f_bench_auto','l_tax_on','l_reg_on','f_tax_on','f_reg_on','l_target_on','f_target_on'];
 
 function save() {
@@ -612,7 +674,7 @@ $('l_example').addEventListener('click', function () {
   $('l_msrp').value = 58000; $('l_price').value = 52200; $('l_rebates').value = 1500;
   $('l_down').value = 0; $('l_mf').value = 0.00180; $('l_residual').value = 60;
   $('l_term').value = 36; $('l_acq').value = 695; $('l_doc').value = 85;
-  $('l_target_on').checked = false; $('l_zipauto').checked = true;
+  $('l_target_on').checked = false; $('l_solvefor').value = 'down'; $('l_zipauto').checked = true;
   $('l_tax_on').checked = true; $('l_reg_on').checked = true;
   recalc();
 });
@@ -621,7 +683,7 @@ $('l_reset').addEventListener('click', function () {
   $('l_zip').value = '92618'; $('l_rebates').value = 0; $('l_down').value = 0;
   $('l_acq').value = 695; $('l_doc').value = 85; $('l_tax').value = 7.75;
   $('l_term').value = 36; $('l_reg').value = 0;
-  $('l_target_on').checked = false; $('l_zipauto').checked = true;
+  $('l_target_on').checked = false; $('l_solvefor').value = 'down'; $('l_zipauto').checked = true;
   $('l_tax_on').checked = true; $('l_reg_on').checked = true;
   recalc();
 });
@@ -632,7 +694,7 @@ $('f_example').addEventListener('click', function () {
   $('f_trade').value = 0; $('f_down').value = 4000; $('f_apr').value = 5.9;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_addons').value = 0;
   $('f_doc').value = 85;
-  $('f_target_on').checked = false; $('f_zipauto').checked = true;
+  $('f_target_on').checked = false; $('f_solvefor').value = 'down'; $('f_zipauto').checked = true;
   $('f_bench_auto').checked = true; $('f_tax_on').checked = true; $('f_reg_on').checked = true;
   recalc();
 });
@@ -641,7 +703,7 @@ $('f_reset').addEventListener('click', function () {
   $('f_zip').value = '92618'; $('f_rebates').value = 0; $('f_trade').value = 0;
   $('f_down').value = 0; $('f_addons').value = 0; $('f_doc').value = 85; $('f_tax').value = 7.75;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_reg').value = 0;
-  $('f_target_on').checked = false; $('f_zipauto').checked = true;
+  $('f_target_on').checked = false; $('f_solvefor').value = 'down'; $('f_zipauto').checked = true;
   $('f_bench_auto').checked = true; $('f_tax_on').checked = true; $('f_reg_on').checked = true;
   recalc();
 });

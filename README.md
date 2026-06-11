@@ -62,10 +62,17 @@ new/used, and term are the real drivers. Override with a real quote any time.
 
 ## Solve for a target payment
 
-Flip on **"Solve for a target monthly payment"**, type your max $/mo, and the
-calculator back-solves the highest car price that hits it (the deal math is
-linear in price, so the inverse is exact), then scores that deal. Works on both
-tabs. "I don't want to go past $600/mo — what's the most I can pay?"
+Flip on **"Solve for a target monthly payment"**, type your max $/mo, and pick
+what to solve for:
+
+- **Find down payment** (default) — you enter the car price; it solves the cash
+  you need to put down to hit that payment. "I want *this* car at $500/mo — how
+  much down?" If even $0 down already lands under your target, it says so.
+- **Find max price** — you enter your down; it solves the highest car price that
+  hits the payment. "I don't want to go past $600/mo — what's the most I can pay?"
+
+The deal math is linear in both price and down payment, so each inverse is exact
+(the resulting monthly lands on your target to the dollar). Works on both tabs.
 
 ## Lease scoring (0-100)
 
