@@ -73,7 +73,7 @@ const PAGE_HTML = `<!doctype html>
     background: var(--card2); color: var(--muted); cursor: pointer; font-size: 13px; }
   .btn:hover { color: var(--text); border-color: var(--accent); }
   .gaugebox { text-align: center; }
-  .gauge-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto 2px; }
+  .gauge-wrap { position: relative; width: 100%; max-width: 360px; margin: 4px auto 14px; }
   .gauge-wrap svg { display: block; width: 100%; }
   .gauge-read { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; pointer-events: none; }
   .scorenum { font-size: 46px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
@@ -318,40 +318,48 @@ function arcPath(cx, cy, r, a0, a1) {
   return 'M ' + x0.toFixed(2) + ' ' + y0.toFixed(2) + ' A ' + r + ' ' + r + ' 0 0 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2);
 }
 
-// Clean semicircle gauge: rounded color segments, a tapered needle, hub, and
-// BAD/GREAT end labels. The score number is rendered in HTML below the dial so
-// the needle never crosses it.
-function gaugeSvg(score) {
-  var cx = 140, cy = 140, r = 116;
+// Bold semicircle dial: thick glowing color segments, a bright position marker
+// punched into the arc, and the big score + verdict centered in the bowl. No
+// sweeping needle, so nothing ever crosses the number.
+function gaugeSvg(score, verdict) {
+  var cx = 150, cy = 158, r = 122, sw = 26;
+  var tone = toneColor[verdict.tone];
   var bands = [
     [0, 40, 'var(--bad)'], [40, 55, 'var(--weak)'], [55, 70, 'var(--fair)'],
     [70, 85, 'var(--good)'], [85, 100, 'var(--great)'],
   ];
-  var s = '<svg viewBox="0 0 280 154" xmlns="http://www.w3.org/2000/svg">';
+  var s = '<svg viewBox="0 0 300 192" xmlns="http://www.w3.org/2000/svg">';
+  s += '<defs><filter id="gg" x="-30%" y="-30%" width="160%" height="160%">';
+  s += '<feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  // Dark track, then the glowing color bands on top of it.
+  s += '<path d="' + arcPath(cx, cy, r, Math.PI, 2 * Math.PI) + '" stroke="var(--card2)" stroke-width="' + (sw + 4) + '" fill="none" stroke-linecap="round"/>';
+  s += '<g filter="url(#gg)">';
   for (var i = 0; i < bands.length; i++) {
     var a0 = Math.PI + (bands[i][0] / 100) * Math.PI;
     var a1 = Math.PI + (bands[i][1] / 100) * Math.PI;
-    s += '<path d="' + arcPath(cx, cy, r, a0 + 0.02, a1 - 0.02) + '" stroke="' + bands[i][2] + '" stroke-width="18" fill="none" stroke-linecap="round"/>';
+    s += '<path d="' + arcPath(cx, cy, r, a0 + 0.016, a1 - 0.016) + '" stroke="' + bands[i][2] + '" stroke-width="' + sw + '" fill="none" stroke-linecap="round"/>';
   }
-  var sc = Math.max(0, Math.min(100, score));
-  var deg = -90 + (sc / 100) * 180;
-  var nl = r - 8;
-  s += '<g transform="rotate(' + deg.toFixed(2) + ' ' + cx + ' ' + cy + ')">';
-  s += '<polygon points="' + (cx - 5) + ',' + cy + ' ' + (cx + 5) + ',' + cy + ' ' + cx + ',' + (cy - nl) + '" fill="var(--text)"/>';
   s += '</g>';
-  s += '<circle cx="' + cx + '" cy="' + cy + '" r="9" fill="var(--text)"/>';
-  s += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="var(--card)"/>';
-  s += '<text x="14" y="151" fill="var(--muted)" font-size="12">BAD</text>';
-  s += '<text x="230" y="151" fill="var(--muted)" font-size="12">GREAT</text>';
+  // Position marker punched into the band at the score angle.
+  var sc = Math.max(0, Math.min(100, score));
+  var ang = Math.PI + (sc / 100) * Math.PI;
+  var mx = (cx + r * Math.cos(ang)).toFixed(1), my = (cy + r * Math.sin(ang)).toFixed(1);
+  s += '<circle cx="' + mx + '" cy="' + my + '" r="14" fill="var(--bg)"/>';
+  s += '<circle cx="' + mx + '" cy="' + my + '" r="9" fill="#fff"/>';
+  s += '<circle cx="' + mx + '" cy="' + my + '" r="4.5" fill="' + tone + '"/>';
+  // Big score + verdict in the bowl.
+  s += '<text x="' + cx + '" y="140" text-anchor="middle" font-size="54" font-weight="800" fill="' + tone + '">' + sc;
+  s += '<tspan font-size="21" font-weight="600" fill="var(--muted)" dx="2">/100</tspan></text>';
+  s += '<text x="' + cx + '" y="167" text-anchor="middle" font-size="17" font-weight="800" letter-spacing="1.4" fill="' + tone + '">' + verdict.label + '</text>';
+  s += '<text x="18" y="186" fill="var(--muted)" font-size="12" font-weight="600">BAD</text>';
+  s += '<text x="282" y="186" text-anchor="end" fill="var(--muted)" font-size="12" font-weight="600">GREAT</text>';
   s += '</svg>';
   return s;
 }
 
 function renderResult(res, bigs, chips, note) {
   var html = '';
-  html += '<div class="gauge-wrap">' + gaugeSvg(res.score) + '</div>';
-  html += '<div class="scorenum" style="color:' + toneColor[res.verdict.tone] + '">' + res.score + '<small>/100</small></div>';
-  html += '<div class="verdict v-' + res.verdict.tone + '">' + res.verdict.label + '</div>';
+  html += '<div class="gauge-wrap">' + gaugeSvg(res.score, res.verdict) + '</div>';
   if (note) html += '<div class="solvebox">' + note + '</div>';
   html += '<div class="bignums">';
   for (var i = 0; i < bigs.length; i++) {
