@@ -86,6 +86,11 @@ const PAGE_HTML = `<!doctype html>
   .btn { flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
     background: var(--card2); color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 600; }
   .btn:active { background: var(--line); }
+  .share-btn { width: 100%; margin-top: 14px; padding: 14px; font-size: 15px; font-weight: 800;
+    color: #14100b; background: var(--accent); border: none; border-radius: 12px; cursor: pointer; }
+  .share-btn:active { filter: brightness(0.92); }
+  .share-btn:disabled { opacity: 0.45; cursor: default; background: var(--card2); color: var(--muted); }
+  .share-note { text-align: center; font-size: 12px; color: var(--muted); margin: 7px 0 0; }
   /* Affordability hero */
   .afford { background: linear-gradient(160deg, #20242e, #191c24); border: 1px solid var(--line);
     border-radius: 14px; padding: 14px; margin-bottom: 13px; }
@@ -323,6 +328,8 @@ const PAGE_HTML = `<!doctype html>
           </ul>
         </div>
       </details>
+      <button class="share-btn" id="share_btn" disabled>&#8595;&nbsp; Download offer image</button>
+      <p class="share-note">A clean snapshot of these exact numbers to send the dealer.</p>
     </div>
   </div>
 
@@ -454,6 +461,130 @@ function renderResult(res, bigs, chips, note, extra) {
   $('results').innerHTML = html;
 }
 
+// ---------------------------------------------------- shareable offer card ----
+var SHARE = { bg: '#0f1115', panel: '#1d212b', line: '#2a2f3a', text: '#e8eaf0', muted: '#9aa3b2', accent: '#f48120' };
+var VCOL = { great: '#22c55e', good: '#84cc16', fair: '#eab308', weak: '#f97316', bad: '#ef4444' };
+var shareData = null;
+var ICON_DATAURL = null;
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function setShare(d) { shareData = d; var b = $('share_btn'); if (b) b.disabled = !d; }
+
+function shareRows(d) {
+  var rows = [], i = d.inputs, q = d.q;
+  if (d.type === 'finance') {
+    var taxTotal = q.salesTax + (q.docWithTax - i.docFee);
+    var outDoor = q.amountFinanced + i.down + i.rebates + i.tradeEquity;
+    rows.push(['Vehicle price', money(i.price)]);
+    rows.push(['Doc fee', money(i.docFee)]);
+    rows.push(['Sales tax (' + i.taxPct.toFixed(2) + '%)', money(taxTotal)]);
+    rows.push(['Registration / DMV fees', money(i.govFees)]);
+    if (i.addons > 0) rows.push(['Dealer add-ons', money(i.addons)]);
+    rows.push(['Out-the-door price', money(outDoor), 'mid']);
+    if (i.down > 0) rows.push(['Down payment', '- ' + money(i.down)]);
+    if (i.rebates > 0) rows.push(['Rebates / incentives', '- ' + money(i.rebates)]);
+    if (i.tradeEquity) rows.push(['Trade-in equity', (i.tradeEquity >= 0 ? '- ' : '+ ') + money(Math.abs(i.tradeEquity))]);
+    rows.push(['Amount financed', money(q.amountFinanced), 'mid']);
+    rows.push(['Rate / term', i.apr.toFixed(2) + '% APR   ' + i.term + ' mo']);
+    rows.push(['Monthly payment', money2(q.monthly), 'big']);
+    rows.push(['Total interest', money(q.totalInterest)]);
+    rows.push(['Total of payments', money(q.totalPayments)]);
+  } else {
+    rows.push(['MSRP', money(i.msrp)]);
+    rows.push(['Selling price', money(i.price)]);
+    rows.push(['Money factor', i.mf.toFixed(5) + '  (' + q.mfApr.toFixed(2) + '% APR)']);
+    rows.push(['Residual', i.residualPct.toFixed(0) + '%  (' + money(q.residualDollar) + ')']);
+    rows.push(['Term', i.term + ' mo']);
+    if (i.down > 0) rows.push(['Down / cap reduction', money(i.down)]);
+    rows.push(['Acquisition fee', money(i.acqFee)]);
+    rows.push(['Doc fee', money(i.docFee)]);
+    rows.push(['Sales tax', i.taxPct.toFixed(2) + '%']);
+    rows.push(['Monthly (with tax)', money2(q.payment), 'big']);
+    rows.push(['Due at signing', money(q.driveOff)]);
+    rows.push(['Effective $/mo all-in', money2(q.effectiveMonthly)]);
+    rows.push(['Total lease cost', money(q.totalCost), 'mid']);
+  }
+  return rows;
+}
+
+function buildShareSvg(d) {
+  var W = 800, padX = 48, rowH = 44, top = 212;
+  var rows = shareRows(d);
+  var H = top + rows.length * rowH + 96 + (d.type === 'finance' && d.bestBank != null ? 28 : 0);
+  var v = d.res.verdict, vc = VCOL[v.tone];
+  var dealType = d.type === 'finance' ? ('Finance · ' + (d.finUsed ? 'Used' : 'New') + ' car') : 'Lease';
+  var locline = dealType + (d.region ? '   ·   ' + d.region : '');
+  var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  var lx = padX + (ICON_DATAURL ? 70 : 0);
+  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">';
+  s += '<rect width="' + W + '" height="' + H + '" fill="' + SHARE.bg + '"/>';
+  s += '<rect width="' + W + '" height="6" fill="' + SHARE.accent + '"/>';
+  if (ICON_DATAURL) s += '<image href="' + ICON_DATAURL + '" x="' + padX + '" y="38" width="54" height="54"/>';
+  s += '<text x="' + lx + '" y="66" fill="' + SHARE.text + '" font-family="sans-serif" font-size="27" font-weight="800">Car Deal Gauge</text>';
+  s += '<text x="' + lx + '" y="90" fill="' + SHARE.muted + '" font-family="sans-serif" font-size="14">Offer summary · ' + esc(date) + '</text>';
+  s += '<text x="' + (W - padX) + '" y="60" text-anchor="end" fill="' + vc + '" font-family="sans-serif" font-size="40" font-weight="800">' + d.res.score + '<tspan font-size="16" fill="' + SHARE.muted + '">/100</tspan></text>';
+  s += '<text x="' + (W - padX) + '" y="86" text-anchor="end" fill="' + vc + '" font-family="sans-serif" font-size="15" font-weight="800" letter-spacing="1">' + esc(v.label) + '</text>';
+  s += '<text x="' + padX + '" y="134" fill="' + SHARE.muted + '" font-family="sans-serif" font-size="15">' + esc(locline) + '</text>';
+  if (d.type === 'finance' && d.affLabel) {
+    s += '<text x="' + padX + '" y="160" fill="' + SHARE.accent + '" font-family="sans-serif" font-size="14" font-weight="700">' + esc(d.affLabel) + ' budget' + (d.target > 0 ? '  ·  target ' + money(d.target) + '/mo' : '') + '</text>';
+  }
+  s += '<line x1="' + padX + '" y1="180" x2="' + (W - padX) + '" y2="180" stroke="' + SHARE.line + '"/>';
+  var y = top;
+  for (var r = 0; r < rows.length; r++) {
+    var lab = rows[r][0], val = rows[r][1], emph = rows[r][2];
+    var big = emph === 'big', mid = emph === 'mid';
+    if (big || mid) s += '<rect x="' + (padX - 14) + '" y="' + (y - 27) + '" width="' + (W - 2 * padX + 28) + '" height="' + (rowH - 4) + '" rx="9" fill="' + SHARE.panel + '"/>';
+    s += '<text x="' + padX + '" y="' + y + '" fill="' + (big ? SHARE.text : SHARE.muted) + '" font-family="sans-serif" font-size="' + (big ? 17 : 15) + '" font-weight="' + (big ? 700 : 400) + '">' + esc(lab) + '</text>';
+    s += '<text x="' + (W - padX) + '" y="' + y + '" text-anchor="end" fill="' + (big ? vc : SHARE.text) + '" font-family="sans-serif" font-size="' + (big ? 21 : mid ? 17 : 16) + '" font-weight="' + (big ? 800 : mid ? 700 : 500) + '">' + esc(val) + '</text>';
+    y += rowH;
+  }
+  if (d.type === 'finance' && d.bestBank != null) {
+    y += 4;
+    s += '<text x="' + padX + '" y="' + y + '" fill="' + SHARE.muted + '" font-family="sans-serif" font-size="13">Market check: bank APR for this credit/term ~' + d.benchAvg.toFixed(1) + '%, top banks ~' + d.bestBank.toFixed(1) + '%.</text>';
+    y += 20;
+  }
+  s += '<line x1="' + padX + '" y1="' + (H - 50) + '" x2="' + (W - padX) + '" y2="' + (H - 50) + '" stroke="' + SHARE.line + '"/>';
+  s += '<text x="' + padX + '" y="' + (H - 26) + '" fill="' + SHARE.muted + '" font-family="sans-serif" font-size="12">Estimate only, not an offer · Car Deal Gauge — qazi-car-calc.waqasqazi.workers.dev</text>';
+  s += '</svg>';
+  return { svg: s, w: W, h: H };
+}
+
+// Cache the logo as a data URL so it embeds in the rasterized PNG.
+function ensureIcon(cb) {
+  if (ICON_DATAURL !== null) return cb();
+  fetch('/icon.png').then(function (r) { return r.blob(); }).then(function (b) {
+    var fr = new FileReader();
+    fr.onload = function () { ICON_DATAURL = fr.result; cb(); };
+    fr.onerror = function () { ICON_DATAURL = ''; cb(); };
+    fr.readAsDataURL(b);
+  }).catch(function () { ICON_DATAURL = ''; cb(); });
+}
+
+function downloadShare() {
+  if (!shareData) return;
+  ensureIcon(function () {
+    var built = buildShareSvg(shareData);
+    var url = URL.createObjectURL(new Blob([built.svg], { type: 'image/svg+xml;charset=utf-8' }));
+    var img = new Image();
+    img.onload = function () {
+      var scale = 2;
+      var c = document.createElement('canvas');
+      c.width = built.w * scale; c.height = built.h * scale;
+      var ctx = c.getContext('2d'); ctx.scale(scale, scale); ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      c.toBlob(function (png) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(png);
+        a.download = 'car-deal-offer.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+      }, 'image/png');
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); alert('Could not generate the image.'); };
+    img.src = url;
+  });
+}
+
 // Resolve the ZIP, update the detected-location readout + doc-fee hint, and
 // return the location object (or null).
 function resolveAndLabel(prefix) {
@@ -570,11 +701,13 @@ function recalcLease() {
     : 'x2400 = APR. Ask the dealer or check Leasehackr forums.';
   var res = scoreLease(inputs);
   if (!res) {
+    setShare(null);
     $('results').innerHTML = '<div class="empty">' + (note ? '<div class="solvebox" style="text-align:left">' + note + '</div>' : '') +
       'Enter MSRP, ' + (targetOn ? 'target payment' : 'selling price') + ', money factor, residual, and term.</div>';
     return;
   }
   var q = res.quote;
+  setShare({ type: 'lease', inputs: inputs, q: q, res: res, region: loc ? loc.region : '' });
   renderResult(res, [
     [taxOn ? 'Monthly (with tax)' : 'Monthly (no tax)', money2(q.payment)],
     ['Drive-off cash', money(q.driveOff)],
@@ -628,6 +761,7 @@ function recalcFinance() {
     // Don't show any solved figure without an APR.
     if (targetOn && solveFor === 'price') $('f_price').value = '';
     if (targetOn && solveFor === 'down') $('f_down').value = '';
+    setShare(null);
     $('results').innerHTML = '<div class="empty req"><b>Enter the APR</b> to see your numbers.<br>Without it the math assumes 0% and shows a fake great deal — put in the lender\\'s real rate.</div>';
     return;
   }
@@ -683,11 +817,16 @@ function recalcFinance() {
   };
   var res = scoreFinance(inputs);
   if (!res) {
+    setShare(null);
     $('results').innerHTML = '<div class="empty">' + (note ? '<div class="solvebox" style="text-align:left">' + note + '</div>' : '') +
       'Enter the car&rsquo;s price' + (finUsed ? ' and market value' : '') + ' to see the score.</div>';
     return;
   }
   var q = res.quote;
+  setShare({ type: 'finance', finUsed: finUsed, region: loc ? loc.region : '', inputs: inputs, q: q, res: res,
+    bestBank: bestBank, benchAvg: inputs.benchmarkApr,
+    affLabel: (aff.income > 0 && aff.level) ? AFFORDABILITY[aff.level].label : '',
+    target: targetOn ? num('f_target') : 0 });
   // Optional "what if I sell / pay off early?" panel.
   var exitHtml = '';
   var exitMo = num('f_exit');
@@ -780,6 +919,7 @@ function setUsed(used) {
 
 $('tab-lease').addEventListener('click', function () { setMode('lease'); });
 $('tab-finance').addEventListener('click', function () { setMode('finance'); });
+$('share_btn').addEventListener('click', downloadShare);
 $('f_new').addEventListener('click', function () { setUsed(false); recalc(); });
 $('f_used').addEventListener('click', function () { setUsed(true); recalc(); });
 

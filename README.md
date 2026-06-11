@@ -97,6 +97,16 @@ The finance tab will not show a score until you enter the APR — an empty APR
 field turns red and the result area says so. Without it the math would assume
 0% and flash a fake "great deal"; a real 0% promo still works if you type `0`.
 
+## Download offer image
+
+A **Download offer image** button at the bottom of the results generates a
+branded PNG receipt of the current deal — vehicle price, tax, fees, out-the-door,
+amount financed, APR/term, monthly, total interest, score + verdict — to send a
+dealer when their estimate doesn't match. The card is built in-browser as an SVG
+(`buildShareSvg`) from the *same* computed values shown on screen and rasterized
+to PNG via canvas, so it always matches; no external libraries. The button is
+disabled until there's a complete, scoreable deal (e.g. APR entered).
+
 ## Mobile-first
 
 Single centered app column (~460px) on every screen, 16px inputs (no iOS
