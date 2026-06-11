@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, lerpCurve, estimateGovFees, estimateRegistration, estimatePlateFee,
-  verdictFor, leaseQuote, scoreLease, financeQuote, scoreFinance,
+  CONFIG, lerpCurve, estimateRegistration, verdictFor,
+  leaseQuote, scoreLease, financeQuote, scoreFinance,
+  marketApr, resolveZip, docFeeCapForState, solveLeasePrice, solveFinancePrice,
 } from '../calc.mjs';
 
 const close = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, (msg || '') + ' got ' + a + ' want ' + b + ' ±' + tol);
@@ -26,13 +27,67 @@ test('verdict bands', () => {
   assert.equal(verdictFor(20).label, 'BAD DEAL');
 });
 
-test('gov fee estimate split', () => {
-  assert.equal(estimateRegistration(40000), Math.round(0.011 * 40000 + 80));
-  assert.equal(estimatePlateFee(40000), CONFIG.plateFee);
-  assert.equal(estimateGovFees(40000), estimateRegistration(40000) + estimatePlateFee(40000));
-  assert.equal(estimateGovFees(0), 0);
-  assert.equal(estimateRegistration(0), 0);
-  assert.equal(estimatePlateFee(0), 0);
+test('registration estimate is state-aware', () => {
+  assert.equal(estimateRegistration(40000, 'CA'), Math.round(190 + 0.0065 * 40000));
+  assert.equal(estimateRegistration(40000, 'TX'), 150); // generic flat
+  assert.equal(estimateRegistration(40000, 'CO'), Math.round(120 + 0.021 * 40000));
+  assert.equal(estimateRegistration(0, 'CA'), 0);
+});
+
+test('market APR is term-aware and new/used aware', () => {
+  // Same tier: used > new, longer term > shorter.
+  assert.ok(marketApr(true, 'prime', 60) > marketApr(false, 'prime', 60));
+  assert.ok(marketApr(false, 'prime', 84) > marketApr(false, 'prime', 36));
+  assert.equal(marketApr(false, 'prime', 60), CONFIG.benchmarks.new.prime);
+  assert.equal(marketApr(false, 'bogus', 60), null);
+  // Price does NOT enter the model — same call, same result.
+  assert.equal(marketApr(false, 'superprime', 72), marketApr(false, 'superprime', 72));
+});
+
+test('ZIP resolves to state, tax, doc cap, trade-credit', () => {
+  const irvine = resolveZip('92618');
+  assert.equal(irvine.state, 'CA');
+  assert.equal(irvine.taxRate, 7.75);
+  assert.equal(irvine.docCap, 85);
+  assert.equal(irvine.tradeCredit, false); // CA does not credit trade-ins
+  const longBeach = resolveZip('90802');
+  assert.equal(longBeach.state, 'CA');
+  assert.ok(longBeach.taxRate > 7.75, 'LA metro higher than OC');
+  const austin = resolveZip('78701');
+  assert.equal(austin.state, 'TX');
+  assert.equal(austin.tradeCredit, true);
+  assert.equal(austin.docCap, 225);
+  assert.equal(resolveZip('abcde'), null);
+  assert.equal(resolveZip('1234'), null);
+  assert.equal(docFeeCapForState('CA'), 85);
+  assert.equal(docFeeCapForState('FL'), null);
+});
+
+test('state doc-fee cap drives the flag', () => {
+  const ca = scoreFinance({
+    isUsed: false, msrp: 40000, price: 40000, down: 0, apr: 6, term: 60,
+    benchmarkApr: 6.6, docFee: 300, govFees: 0, taxPct: 7.75, docFeeCap: 85, stateLabel: 'California',
+  });
+  assert.ok(ca.flags.some(f => f.msg.includes('legal cap of $85')));
+  // No-cap state: $300 doc fee is legal, so no over-cap flag.
+  const fl = scoreFinance({
+    isUsed: false, msrp: 40000, price: 40000, down: 0, apr: 6, term: 60,
+    benchmarkApr: 6.6, docFee: 300, govFees: 0, taxPct: 7.0, docFeeCap: null, stateLabel: 'Florida',
+  });
+  assert.equal(fl.flags.some(f => f.msg.includes('legal cap')), false);
+});
+
+test('trade-in tax credit lowers tax outside CA', () => {
+  const base = {
+    isUsed: false, msrp: 40000, price: 40000, tradeEquity: 10000, down: 0,
+    apr: 6, term: 60, benchmarkApr: 6.6, docFee: 0, govFees: 0, taxPct: 7.0,
+  };
+  const noCredit = financeQuote({ ...base, taxTradeCredit: false });
+  const credit = financeQuote({ ...base, taxTradeCredit: true });
+  close(noCredit.salesTax - credit.salesTax, 10000 * 0.07, 0.01, 'trade credit saves tax');
+  assert.equal(credit.tradeTaxSaved > 0, true);
+  const scored = scoreFinance({ ...base, taxTradeCredit: true });
+  assert.ok(scored.flags.some(f => f.msg.includes('credits the trade-in')));
 });
 
 test('toggling tax and fees off lowers cost', () => {
@@ -45,12 +100,31 @@ test('toggling tax and fees off lowers cost', () => {
   assert.ok(noTax.totalCost < withTax.totalCost, 'no-tax lease should cost less');
   const noFees = leaseQuote({ ...base, govFees: 0 });
   assert.ok(noFees.driveOff < withTax.driveOff, 'dropping gov fees lowers drive-off');
-  // Finance: excluding tax removes the rebate-tax info flag.
-  const fin = scoreFinance({
-    isUsed: false, msrp: 40000, price: 40000, rebates: 3000, down: 0, apr: 6,
-    term: 60, benchmarkApr: 6.6, docFee: 85, govFees: 0, taxPct: 0,
-  });
-  assert.equal(fin.flags.some(f => f.msg.includes('before rebates')), false);
+});
+
+test('solve for target monthly payment (lease + finance)', () => {
+  const leaseIn = {
+    msrp: 50000, rebates: 0, down: 0, acqFee: 695, docFee: 85, govFees: 600,
+    mf: 0.00200, residualPct: 58, term: 36, taxPct: 7.75,
+  };
+  const lp = solveLeasePrice(leaseIn, 600);
+  const lq = leaseQuote({ ...leaseIn, price: lp });
+  close(lq.payment, 600, 1.0, 'solved lease price hits target payment');
+
+  const finIn = {
+    isUsed: false, msrp: 45000, rebates: 0, tradeEquity: 0, down: 4000, apr: 6.0,
+    term: 60, docFee: 85, govFees: 595, addons: 0, taxPct: 7.75,
+  };
+  const fp = solveFinancePrice(finIn, 550);
+  const fq = financeQuote({ ...finIn, price: fp });
+  close(fq.monthly, 550, 1.0, 'solved finance price hits target payment');
+  assert.equal(solveFinancePrice(finIn, 0), null);
+
+  // With a trade-in in a trade-credit state, the solve must still hit target.
+  const tradeIn = { ...finIn, tradeEquity: 10000, taxTradeCredit: true };
+  const tp = solveFinancePrice(tradeIn, 550);
+  const tq = financeQuote({ ...tradeIn, price: tp });
+  close(tq.monthly, 550, 1.0, 'trade-credit solve still hits target');
 });
 
 test('lease math: standard CA example', () => {

@@ -18,28 +18,54 @@ great, good, fair, below average, or bad, and exactly why.
 | `tests/calc.test.mjs` | `node --test` suite over the math |
 | `.github/workflows/deploy.yml` | Deploy on push to main (needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` repo secrets) |
 
-## Local rules baked in (Irvine / Orange County, CA)
+## Location-aware (ZIP → tax + fees)
 
-- Sales tax default **7.75%** (editable per calculation).
-- **CA lease taxation**: use tax is charged on each monthly payment AND on
-  cap-cost reduction (down payment + rebates). Both are modeled.
-- **CA purchase taxation**: sales tax applies to the negotiated price
-  **before** manufacturer rebates. The rebate reduces what you finance, not
-  what you're taxed on.
-- **Doc fee**: taxable, legal cap **$85** statewide. Anything above gets
-  flagged.
-- **DMV/government fees**: split into **registration** (~1.1% of price + $80,
-  covers VLF) and **license/plate** ($35 flat). Both auto-estimated from price,
-  editable; padded fees above 2.5% of price get flagged.
+Enter a ZIP and the calculator resolves your state and pulls:
+
+- **Sales tax** for that state. California is resolved at metro level (Orange
+  County 7.75%, LA 9.5%, SF 8.625%, Oakland 10.25%, etc.); other states use a
+  representative statewide combined vehicle-tax rate. The detected location +
+  rate is shown, and every value is editable, so nothing is hidden.
+- **Registration & DMV fees** — a single estimated bundle (registration, title,
+  plates, and any value-based fee like CA's VLF). Most states are a flat
+  estimate; CA/CO/MN/NE are value-based.
+- **Doc-fee cap** — flagged against that state's legal cap (CA $85, TX $225, NY
+  $175, etc.). States with no cap (FL, many others) flag only egregious fees.
+- **Trade-in tax credit** — most states deduct your trade-in from the taxable
+  price (modeled, with the tax saved shown); **California does not**, which is
+  why it matters the moment you shop out of state.
+
+Defaults to Irvine (92618). Tax math: leases are taxed on each payment AND on
+cap-cost reduction; purchase tax applies to the price **before** rebates.
+
+### One government bill, not three
+
+When you buy a car the government charges **sales tax** and the **registration/
+DMV bundle** (title + plates + VLF are all part of that one bill, not separate
+line items). The dealer **doc fee** is separate but it is a dealer charge.
 
 ### Excluding tax and fees
 
-Sales tax, registration, and license/plate each have a checkbox. Uncheck any of
-them to drop that cost from the calculation (the typed value is kept, so
-re-checking restores it). Useful for out-of-state buys, comparing the
-vehicle-plus-financing cost in isolation, or when you've accounted for a fee
-elsewhere. With tax unchecked the lease payment is labeled "(no tax)" and the
-finance rebate-tax note is suppressed.
+Sales tax and the registration/DMV bundle each have a checkbox. Uncheck either
+to drop it from the calculation (the typed value is kept, so re-checking
+restores it). Useful for out-of-state buys, comparing the vehicle-plus-financing
+cost in isolation, or when you've handled a fee elsewhere. With tax unchecked
+the lease payment is labeled "(no tax)".
+
+## Market APR (auto-filled)
+
+The benchmark APR is auto-set for your **credit tier**, **new vs used**, AND
+**loan term** (72 months prices higher than 36), sourced from Experian's
+quarterly average and stamped with the "as of" date. Loan *amount* (a $20k vs
+$100k car) barely moves APR at the same tier, so it is not a dimension — credit,
+new/used, and term are the real drivers. Override with a real quote any time.
+
+## Solve for a target payment
+
+Flip on **"Solve for a target monthly payment"**, type your max $/mo, and the
+calculator back-solves the highest car price that hits it (the deal math is
+linear in price, so the inverse is exact), then scores that deal. Works on both
+tabs. "I don't want to go past $600/mo — what's the most I can pay?"
 
 ## Lease scoring (0-100)
 
@@ -48,7 +74,7 @@ finance rebate-tax note is suppressed.
 | Effective cost vs MSRP | 40% | Total of ALL money out (payments, down, fees, taxes on everything) divided by term, as % of MSRP. 0.65% → 100, 0.8% → 90, 1.0% → 70, 1.25% → 50, 1.5% → 32, 2.0% → 10. This is the 1% rule plus the Leasehackr "value years" idea (MSRP / 12×effective payment) in one number — it can't be gamed by moving money into the down payment. |
 | Discount off MSRP | 25% | Negotiated price vs sticker, before incentives. 10% off → 100, 7% → 85, 5% → 70, 3% → 55, 0% → 25, over sticker → 5-10. |
 | Money factor | 20% | MF × 2400 = APR equivalent. ≤3% → 100, 5% → 85, 6% → 70, 7.5% → 50, 9% → 30, 11%+ → 10. Dealers mark MF up over the captive buy rate; always ask. |
-| Fees & structure | 15% | Starts at 100. Doc fee over $85 −30. Acquisition fee over $1,095 −25. Gov fees over 2.5% of price −20. Down payment over $2,000 −15 (lease down payments evaporate if the car is totaled). Residual outside 45-70% −10 (sanity check). |
+| Fees & structure | 15% | Starts at 100. Doc fee over the state cap −30. Acquisition fee over $1,095 −25. Gov fees over 2.5% of price −20. Down payment over $2,000 −15 (lease down payments evaporate if the car is totaled). Residual outside 45-70% −10 (sanity check). |
 
 **Critical flags cap the score at 49** (one of these means it cannot be a
 good deal): MF ≥ 12% APR equivalent · paying > 3% over MSRP · effective cost
@@ -63,7 +89,7 @@ good deal): MF ≥ 12% APR equivalent · paying > 3% over MSRP · effective cost
 | Loan term | 15% | 36mo → 100, 48 → 90, 60 → 75, 72 → 45, 84 → 15. Long terms = more interest + years underwater. |
 | Loan-to-value | 15% | Amount financed ÷ price. ≤80% → 95+, 90% → 85, 100% → 65, 110% → 40, 125% → 12. |
 | Total interest burden | 10% | Lifetime interest ÷ amount financed. 5% → 95, 10% → 80, 20% → 45, 40% → 10. |
-| Fees & add-ons | 5% | Doc over $85 −40, gov fees over 2.5% −20, dealer add-ons over $500 −30. |
+| Fees & add-ons | 5% | Doc over the state cap −40, gov fees over 2.5% −20, dealer add-ons over $500 −30. |
 
 **Critical flags cap the score at 49**: APR 4+ points above tier average ·
 LTV ≥ 120% (negative equity rolled in) · 84-month term at 2+ points above

@@ -73,8 +73,19 @@ const PAGE_HTML = `<!doctype html>
     background: var(--card2); color: var(--muted); cursor: pointer; font-size: 13px; }
   .btn:hover { color: var(--text); border-color: var(--accent); }
   .gaugebox { text-align: center; }
-  .scorenum { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; margin-top: -86px; }
-  .verdict { font-size: 19px; font-weight: 800; letter-spacing: 0.04em; margin: 2px 0 14px; }
+  .gauge-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto 2px; }
+  .gauge-wrap svg { display: block; width: 100%; }
+  .gauge-read { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; pointer-events: none; }
+  .scorenum { font-size: 46px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .scorenum small { font-size: 15px; font-weight: 600; color: var(--muted); }
+  .verdict { font-size: 19px; font-weight: 800; letter-spacing: 0.04em; margin: 4px 0 14px; }
+  .readout { padding: 9px 10px; background: var(--card2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 14px; min-height: 38px; display: flex; align-items: center; }
+  .readout.muted { color: var(--muted); }
+  .lever { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-bottom: 11px; }
+  .lever input { width: 100%; margin-top: 8px; padding: 9px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 15px; }
+  .lever input:focus { outline: none; border-color: var(--accent); }
+  .solvebox { background: rgba(244,129,32,0.08); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px; color: var(--text); }
+  .solvebox b { color: var(--accent); }
   .v-great { color: var(--great); } .v-good { color: var(--good); } .v-fair { color: var(--fair); }
   .v-weak { color: var(--weak); } .v-bad { color: var(--bad); }
   .bignums { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
@@ -107,7 +118,7 @@ const PAGE_HTML = `<!doctype html>
 <body>
 <div class="wrap">
   <h1>Car Deal Gauge</h1>
-  <p class="sub">Lease and finance deal checker. Defaults tuned for Irvine / Orange County, CA (7.75% tax, $85 doc fee cap, CA lease tax rules). Plug in the numbers from the dealer worksheet and the gauge tells you if it is a good deal.</p>
+  <p class="sub">Lease and finance deal checker. Enter your ZIP and it pulls the right sales tax, DMV fees, and doc-fee cap for your state; market APR is auto-set for your credit tier, new/used, and term. Plug in the dealer worksheet and the gauge tells you if it is a good deal. Defaults to Irvine, CA.</p>
 
   <div class="tabs">
     <div class="tab active" id="tab-lease">Lease</div>
@@ -120,8 +131,17 @@ const PAGE_HTML = `<!doctype html>
 
       <div id="pane-lease">
         <div class="row">
+          <div class="field"><label>ZIP code</label><input id="l_zip" type="text" inputmode="numeric" maxlength="5" placeholder="92618"></div>
+          <div class="field"><label>Detected location</label><div id="l_loc" class="readout">—</div></div>
+        </div>
+        <div class="lever">
+          <label class="tlabel"><input id="l_target_on" type="checkbox"> Solve for a target monthly payment</label>
+          <input id="l_target" type="number" step="10" placeholder="600 (your max $/mo)" class="off" disabled>
+          <div class="hint">We back-solve the highest selling price that hits this payment. Selling price below becomes the answer.</div>
+        </div>
+        <div class="row">
           <div class="field"><label>MSRP (sticker) $</label><input id="l_msrp" type="number" step="100" placeholder="50000"></div>
-          <div class="field"><label>Negotiated selling price $</label><input id="l_price" type="number" step="100" placeholder="46500"><div class="hint">Before any rebates. This is the number you negotiate.</div></div>
+          <div class="field"><label id="l_price_label">Negotiated selling price $</label><input id="l_price" type="number" step="100" placeholder="46500"><div class="hint" id="l_price_hint">Before any rebates. This is the number you negotiate.</div></div>
         </div>
         <div class="row">
           <div class="field"><label>Rebates / incentives $</label><input id="l_rebates" type="number" step="100" value="0"></div>
@@ -142,17 +162,13 @@ const PAGE_HTML = `<!doctype html>
         </div>
         <div class="row">
           <div class="field"><label>Acquisition fee $</label><input id="l_acq" type="number" step="5" value="695"></div>
-          <div class="field"><label>Doc fee $</label><input id="l_doc" type="number" step="5" value="85"><div class="hint">CA legal max is $85.</div></div>
+          <div class="field"><label>Doc fee $</label><input id="l_doc" type="number" step="5" value="85"><div class="hint" id="l_doc_hint">CA legal max is $85.</div></div>
         </div>
         <div class="row">
-          <div class="field"><label class="tlabel"><input id="l_tax_on" type="checkbox" checked> Sales tax %</label><input id="l_tax" type="number" step="0.05" value="7.75"><div class="hint">Uncheck to exclude tax from the deal.</div></div>
-          <div class="field"><label class="tlabel"><input id="l_reg_on" type="checkbox" checked> Registration fee $</label><input id="l_reg" type="number" step="5" value="0"><div class="hint">DMV registration + VLF.</div></div>
+          <div class="field"><label class="tlabel"><input id="l_tax_on" type="checkbox" checked> Sales tax %</label><input id="l_tax" type="number" step="0.05" value="7.75"><div class="hint">Uncheck to exclude tax.</div></div>
+          <div class="field"><label class="tlabel"><input id="l_reg_on" type="checkbox" checked> Registration &amp; DMV fees $</label><input id="l_reg" type="number" step="5" value="0"><div class="hint">Title, plates, VLF.</div></div>
         </div>
-        <div class="row">
-          <div class="field"><label class="tlabel"><input id="l_plate_on" type="checkbox" checked> License / plate fee $</label><input id="l_plate" type="number" step="5" value="0"></div>
-          <div class="field"></div>
-        </div>
-        <div class="check"><input id="l_gov_auto" type="checkbox" checked><label for="l_gov_auto">Auto-estimate registration + plate from price</label></div>
+        <div class="check"><input id="l_zipauto" type="checkbox" checked><label for="l_zipauto">Auto-fill tax + DMV fees from ZIP</label></div>
         <div class="btns">
           <button class="btn" id="l_example">Load example</button>
           <button class="btn" id="l_reset">Reset</button>
@@ -165,11 +181,20 @@ const PAGE_HTML = `<!doctype html>
           <button id="f_used">Used car</button>
         </div>
         <div class="row">
-          <div class="field"><label id="f_msrp_label">MSRP (sticker) $</label><input id="f_msrp" type="number" step="100" placeholder="43000"></div>
-          <div class="field"><label>Negotiated price $</label><input id="f_price" type="number" step="100" placeholder="40000"></div>
+          <div class="field"><label>ZIP code</label><input id="f_zip" type="text" inputmode="numeric" maxlength="5" placeholder="92618"></div>
+          <div class="field"><label>Detected location</label><div id="f_loc" class="readout">—</div></div>
+        </div>
+        <div class="lever">
+          <label class="tlabel"><input id="f_target_on" type="checkbox"> Solve for a target monthly payment</label>
+          <input id="f_target" type="number" step="10" placeholder="550 (your max $/mo)" class="off" disabled>
+          <div class="hint">We back-solve the highest price that hits this payment. Negotiated price below becomes the answer.</div>
         </div>
         <div class="row">
-          <div class="field"><label>Rebates / incentives $</label><input id="f_rebates" type="number" step="100" value="0"><div class="hint">CA taxes the price BEFORE rebates.</div></div>
+          <div class="field"><label id="f_msrp_label">MSRP (sticker) $</label><input id="f_msrp" type="number" step="100" placeholder="43000"></div>
+          <div class="field"><label id="f_price_label">Negotiated price $</label><input id="f_price" type="number" step="100" placeholder="40000"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Rebates / incentives $</label><input id="f_rebates" type="number" step="100" value="0"><div class="hint">Taxed before rebates in most states.</div></div>
           <div class="field"><label>Trade-in equity $</label><input id="f_trade" type="number" step="100" value="0"><div class="hint">Negative if you owe more than it is worth.</div></div>
         </div>
         <div class="row">
@@ -189,18 +214,18 @@ const PAGE_HTML = `<!doctype html>
           </select></div>
         </div>
         <div class="row">
-          <div class="field"><label>Benchmark APR % (market avg)</label><input id="f_bench" type="number" step="0.1"><div class="hint">Auto-filled from tier. Override if you have a better quote.</div></div>
+          <div class="field"><label>Benchmark APR % (market avg)</label><input id="f_bench" type="number" step="0.1"><div class="hint" id="f_bench_hint">Auto-filled for your tier, new/used, and term.</div></div>
           <div class="field"><label>Dealer add-ons $</label><input id="f_addons" type="number" step="50" value="0"><div class="hint">Etch, nitrogen, "protection". Should be $0.</div></div>
         </div>
         <div class="row">
-          <div class="field"><label>Doc fee $</label><input id="f_doc" type="number" step="5" value="85"></div>
-          <div class="field"><label class="tlabel"><input id="f_tax_on" type="checkbox" checked> Sales tax %</label><input id="f_tax" type="number" step="0.05" value="7.75"><div class="hint">Uncheck to exclude tax from the deal.</div></div>
+          <div class="field"><label>Doc fee $</label><input id="f_doc" type="number" step="5" value="85"><div class="hint" id="f_doc_hint">CA legal max is $85.</div></div>
+          <div class="field"><label class="tlabel"><input id="f_tax_on" type="checkbox" checked> Sales tax %</label><input id="f_tax" type="number" step="0.05" value="7.75"><div class="hint">Uncheck to exclude tax.</div></div>
         </div>
         <div class="row">
-          <div class="field"><label class="tlabel"><input id="f_reg_on" type="checkbox" checked> Registration fee $</label><input id="f_reg" type="number" step="5" value="0"><div class="hint">DMV registration + VLF.</div></div>
-          <div class="field"><label class="tlabel"><input id="f_plate_on" type="checkbox" checked> License / plate fee $</label><input id="f_plate" type="number" step="5" value="0"></div>
+          <div class="field"><label class="tlabel"><input id="f_reg_on" type="checkbox" checked> Registration &amp; DMV fees $</label><input id="f_reg" type="number" step="5" value="0"><div class="hint">Title, plates, VLF.</div></div>
+          <div class="field"></div>
         </div>
-        <div class="check"><input id="f_gov_auto" type="checkbox" checked><label for="f_gov_auto">Auto-estimate registration + plate from price</label></div>
+        <div class="check"><input id="f_zipauto" type="checkbox" checked><label for="f_zipauto">Auto-fill tax + DMV fees from ZIP</label></div>
         <div class="check"><input id="f_bench_auto" type="checkbox" checked><label for="f_bench_auto">Auto-fill benchmark APR from credit tier</label></div>
         <div class="btns">
           <button class="btn" id="f_example">Load example</button>
@@ -232,7 +257,7 @@ const PAGE_HTML = `<!doctype html>
             <li><b>Loan term (15%)</b>: 48-60 months is healthy. 72+ bleeds interest and keeps you underwater.</li>
             <li><b>Loan-to-value (15%)</b>: financing under 90% of the price (10%+ down) protects you.</li>
             <li><b>Total interest burden (10%)</b>: lifetime interest as % of amount financed.</li>
-            <li><b>Fees and add-ons (5%)</b>: doc fee over CA cap, padded gov fees, dealer add-ons.</li>
+            <li><b>Fees and add-ons (5%)</b>: doc fee over your state's cap, padded gov fees, dealer add-ons.</li>
             <li><b>Critical flags cap the score at 49</b>: APR 4+ points above your tier, 120%+ LTV (negative equity), 84-month above-market loans, paying 5%+ over MSRP.</li>
           </ul>
         </div>
@@ -240,11 +265,11 @@ const PAGE_HTML = `<!doctype html>
     </div>
   </div>
 
-  <p class="foot">CA math: lease payments and cap-cost reduction are taxed; purchase tax applies before rebates; doc fee taxable, capped at $85. Benchmarks are editable estimates, not quotes. Not financial advice; it is a negotiation gut-check.</p>
+  <p class="foot">Tax + DMV fees and the doc-fee cap come from your ZIP's state (California metros are rate-accurate; other states use a representative combined rate). Lease payments and cap-cost reduction are taxed; tax applies before rebates; most states credit a trade-in against tax (CA does not). Benchmarks are editable estimates, not quotes. Not financial advice; it is a negotiation gut-check.</p>
 </div>
 
 <script type="module">
-import { CONFIG, estimateRegistration, estimatePlateFee, scoreLease, scoreFinance } from '/calc.mjs';
+import { CONFIG, estimateRegistration, resolveZip, marketApr, solveLeasePrice, solveFinancePrice, scoreLease, scoreFinance } from '/calc.mjs';
 
 var $ = function (id) { return document.getElementById(id); };
 var mode = 'lease';
@@ -262,8 +287,7 @@ function num(id) { var v = parseFloat($(id).value); return isFinite(v) ? v : 0; 
 function numOr(id, dflt) { var v = parseFloat($(id).value); return isFinite(v) ? v : dflt; }
 
 // A toggleable line: returns its dollar value when checked, else 0, and dims
-// the input + flips its hint to "excluded" colour when off. Keeps the typed
-// value so re-checking restores it.
+// the input when off. Keeps the typed value so re-checking restores it.
 function togVal(onId, valId) {
   var on = $(onId).checked;
   var inp = $(valId);
@@ -280,34 +304,41 @@ function arcPath(cx, cy, r, a0, a1) {
   return 'M ' + x0.toFixed(2) + ' ' + y0.toFixed(2) + ' A ' + r + ' ' + r + ' 0 0 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2);
 }
 
-function gaugeSvg(score, tone) {
-  var cx = 200, cy = 185, r = 145;
+// Clean semicircle gauge: rounded color segments, a tapered needle, hub, and
+// BAD/GREAT end labels. The score number is rendered in HTML below the dial so
+// the needle never crosses it.
+function gaugeSvg(score) {
+  var cx = 140, cy = 140, r = 116;
   var bands = [
     [0, 40, 'var(--bad)'], [40, 55, 'var(--weak)'], [55, 70, 'var(--fair)'],
     [70, 85, 'var(--good)'], [85, 100, 'var(--great)'],
   ];
-  var s = '<svg viewBox="0 0 400 215" style="width:100%;max-width:380px">';
+  var s = '<svg viewBox="0 0 280 154" xmlns="http://www.w3.org/2000/svg">';
   for (var i = 0; i < bands.length; i++) {
     var a0 = Math.PI + (bands[i][0] / 100) * Math.PI;
     var a1 = Math.PI + (bands[i][1] / 100) * Math.PI;
-    s += '<path d="' + arcPath(cx, cy, r, a0 + 0.012, a1 - 0.012) + '" stroke="' + bands[i][2] + '" stroke-width="26" fill="none" stroke-linecap="butt" opacity="0.85"/>';
+    s += '<path d="' + arcPath(cx, cy, r, a0 + 0.02, a1 - 0.02) + '" stroke="' + bands[i][2] + '" stroke-width="18" fill="none" stroke-linecap="round"/>';
   }
-  var deg = -90 + (score / 100) * 180;
-  s += '<g transform="rotate(' + deg + ' ' + cx + ' ' + cy + ')">';
-  s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + cx + '" y2="' + (cy - r + 34) + '" stroke="var(--text)" stroke-width="4" stroke-linecap="round"/>';
+  var sc = Math.max(0, Math.min(100, score));
+  var deg = -90 + (sc / 100) * 180;
+  var nl = r - 8;
+  s += '<g transform="rotate(' + deg.toFixed(2) + ' ' + cx + ' ' + cy + ')">';
+  s += '<polygon points="' + (cx - 5) + ',' + cy + ' ' + (cx + 5) + ',' + cy + ' ' + cx + ',' + (cy - nl) + '" fill="var(--text)"/>';
   s += '</g>';
   s += '<circle cx="' + cx + '" cy="' + cy + '" r="9" fill="var(--text)"/>';
-  s += '<text x="34" y="210" fill="var(--muted)" font-size="12">BAD</text>';
-  s += '<text x="338" y="210" fill="var(--muted)" font-size="12">GREAT</text>';
+  s += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="var(--card)"/>';
+  s += '<text x="14" y="151" fill="var(--muted)" font-size="12">BAD</text>';
+  s += '<text x="230" y="151" fill="var(--muted)" font-size="12">GREAT</text>';
   s += '</svg>';
   return s;
 }
 
-function renderResult(res, bigs, chips) {
+function renderResult(res, bigs, chips, note) {
   var html = '';
-  html += gaugeSvg(res.score, res.verdict.tone);
-  html += '<div class="scorenum" style="color:' + toneColor[res.verdict.tone] + '">' + res.score + '</div>';
+  html += '<div class="gauge-wrap">' + gaugeSvg(res.score) + '</div>';
+  html += '<div class="scorenum" style="color:' + toneColor[res.verdict.tone] + '">' + res.score + '<small>/100</small></div>';
   html += '<div class="verdict v-' + res.verdict.tone + '">' + res.verdict.label + '</div>';
+  if (note) html += '<div class="solvebox">' + note + '</div>';
   html += '<div class="bignums">';
   for (var i = 0; i < bigs.length; i++) {
     html += '<div class="bignum"><div class="k">' + bigs[i][0] + '</div><div class="v">' + bigs[i][1] + '</div></div>';
@@ -334,20 +365,78 @@ function renderResult(res, bigs, chips) {
   $('results').innerHTML = html;
 }
 
-function recalcLease() {
-  var price = num('l_price');
-  if ($('l_gov_auto').checked && price > 0) {
-    $('l_reg').value = estimateRegistration(price);
-    $('l_plate').value = estimatePlateFee(price);
+// Resolve the ZIP, update the detected-location readout + doc-fee hint, and
+// return the location object (or null).
+function resolveAndLabel(prefix) {
+  var loc = resolveZip($(prefix + '_zip').value);
+  var lbl = $(prefix + '_loc');
+  var dh = $(prefix + '_doc_hint');
+  if (loc) {
+    lbl.textContent = loc.region + ' · ' + loc.taxRate.toFixed(2) + '% tax';
+    lbl.classList.remove('muted');
+    if (dh) dh.textContent = loc.docCap != null
+      ? (loc.name + ' legal max is $' + loc.docCap + '.')
+      : (loc.name + ' has no doc-fee cap, so it is negotiable.');
+  } else {
+    lbl.textContent = $(prefix + '_zip').value ? 'Unrecognized ZIP — using entered values' : '—';
+    lbl.classList.add('muted');
   }
-  var govFees = togVal('l_reg_on', 'l_reg') + togVal('l_plate_on', 'l_plate');
+  return loc;
+}
+
+// Flip the price field to read-only (solved) or editable, and enable/disable
+// the target input, when the target-payment lever is toggled.
+function setTargetUI(prefix, on) {
+  var t = $(prefix + '_target');
+  t.disabled = !on;
+  t.classList.toggle('off', !on);
+  var p = $(prefix + '_price');
+  p.readOnly = on;
+  p.classList.toggle('off', on);
+  var lbl = $(prefix + '_price_label');
+  if (lbl) lbl.textContent = on
+    ? (prefix === 'l' ? 'Selling price (solved) $' : 'Price (solved) $')
+    : (prefix === 'l' ? 'Negotiated selling price $' : 'Negotiated price $');
+}
+
+function recalcLease() {
+  var loc = resolveAndLabel('l');
+  var zipauto = $('l_zipauto').checked;
+  if (loc && zipauto) $('l_tax').value = loc.taxRate;
   var taxOn = $('l_tax_on').checked;
   $('l_tax').classList.toggle('off', !taxOn);
+  var taxPct = taxOn ? numOr('l_tax', CONFIG.taxRateDefault) : 0;
+  var state = loc ? loc.state : 'CA';
+  var docCap = loc ? loc.docCap : CONFIG.docFeeCap;
+  var stateLabel = loc ? loc.name : 'California';
+
+  var targetOn = $('l_target_on').checked;
+  setTargetUI('l', targetOn);
+  var note = null;
+  if (targetOn) {
+    var solved = solveLeasePrice({
+      msrp: num('l_msrp'), residualPct: num('l_residual'), mf: num('l_mf'),
+      term: num('l_term'), acqFee: num('l_acq'), down: num('l_down'),
+      rebates: num('l_rebates'), taxPct: taxPct,
+    }, num('l_target'));
+    if (solved && solved > 0) {
+      $('l_price').value = solved;
+      note = 'To stay at ' + money(num('l_target')) + '/mo, pay at most <b>' + money(solved) + '</b> for the car (selling price, before tax + fees).';
+    } else {
+      $('l_price').value = '';
+      note = 'That payment is not reachable with these terms. Lower the money factor, shorten the term, or raise the target.';
+    }
+  } else if (zipauto && num('l_price') > 0) {
+    $('l_reg').value = estimateRegistration(num('l_price'), state);
+  }
+  var price = num('l_price');
+  var govFees = togVal('l_reg_on', 'l_reg');
+
   var inputs = {
     msrp: num('l_msrp'), price: price, rebates: num('l_rebates'), down: num('l_down'),
     acqFee: num('l_acq'), docFee: num('l_doc'), govFees: govFees,
-    mf: num('l_mf'), residualPct: num('l_residual'),
-    term: num('l_term'), taxPct: taxOn ? numOr('l_tax', CONFIG.taxRateDefault) : 0,
+    mf: num('l_mf'), residualPct: num('l_residual'), term: num('l_term'),
+    taxPct: taxPct, docFeeCap: docCap, stateLabel: stateLabel,
   };
   var mfApr = inputs.mf * 2400;
   $('l_mf_hint').textContent = inputs.mf > 0
@@ -355,7 +444,8 @@ function recalcLease() {
     : 'x2400 = APR. Ask the dealer or check Leasehackr forums.';
   var res = scoreLease(inputs);
   if (!res) {
-    $('results').innerHTML = '<div class="empty">Enter MSRP, selling price, money factor, residual, and term.</div>';
+    $('results').innerHTML = '<div class="empty">' + (note ? '<div class="solvebox" style="text-align:left">' + note + '</div>' : '') +
+      'Enter MSRP, ' + (targetOn ? 'target payment' : 'selling price') + ', money factor, residual, and term.</div>';
     return;
   }
   var q = res.quote;
@@ -368,31 +458,61 @@ function recalcLease() {
     '1% rule: ' + q.effPct.toFixed(2) + '%',
     q.valueYears.toFixed(1) + ' value-years',
     'MF = ' + q.mfApr.toFixed(2) + '% APR',
-  ]);
+  ], note);
 }
 
 function recalcFinance() {
-  var price = num('f_price');
-  if ($('f_gov_auto').checked && price > 0) {
-    $('f_reg').value = estimateRegistration(price);
-    $('f_plate').value = estimatePlateFee(price);
-  }
-  if ($('f_bench_auto').checked) {
-    var table = finUsed ? CONFIG.benchmarks.used : CONFIG.benchmarks.new;
-    $('f_bench').value = table[$('f_tier').value];
-  }
-  var govFees = togVal('f_reg_on', 'f_reg') + togVal('f_plate_on', 'f_plate');
+  var loc = resolveAndLabel('f');
+  var zipauto = $('f_zipauto').checked;
+  if (loc && zipauto) $('f_tax').value = loc.taxRate;
   var taxOn = $('f_tax_on').checked;
   $('f_tax').classList.toggle('off', !taxOn);
+  var taxPct = taxOn ? numOr('f_tax', CONFIG.taxRateDefault) : 0;
+  var state = loc ? loc.state : 'CA';
+  var docCap = loc ? loc.docCap : CONFIG.docFeeCap;
+  var stateLabel = loc ? loc.name : 'California';
+  var tradeCredit = loc ? loc.tradeCredit : false;
+
+  if ($('f_bench_auto').checked) {
+    var b = marketApr(finUsed, $('f_tier').value, num('f_term'));
+    if (b != null) $('f_bench').value = b;
+  }
+  $('f_bench_hint').textContent = 'Market avg for your tier/term (' + CONFIG.benchmarksAsOf + '). Override with a real quote.';
+
+  var targetOn = $('f_target_on').checked;
+  setTargetUI('f', targetOn);
+  var note = null;
+  // Registration is fixed for the solve so the resulting payment matches exactly.
+  var govFees = togVal('f_reg_on', 'f_reg');
+  if (targetOn) {
+    var solved = solveFinancePrice({
+      docFee: num('f_doc'), govFees: govFees, addons: num('f_addons'),
+      down: num('f_down'), rebates: num('f_rebates'), tradeEquity: num('f_trade'),
+      taxPct: taxPct, apr: num('f_apr'), term: num('f_term'), taxTradeCredit: tradeCredit,
+    }, num('f_target'));
+    if (solved && solved > 0) {
+      $('f_price').value = solved;
+      note = 'To stay at ' + money(num('f_target')) + '/mo, pay at most <b>' + money(solved) + '</b> for the car (before tax + fees).';
+    } else {
+      $('f_price').value = '';
+      note = 'That payment is not reachable with these terms. Raise the down payment, extend the term, or lift the target.';
+    }
+  } else if (zipauto && num('f_price') > 0) {
+    $('f_reg').value = estimateRegistration(num('f_price'), state);
+    govFees = togVal('f_reg_on', 'f_reg');
+  }
+
   var inputs = {
-    isUsed: finUsed, msrp: num('f_msrp'), price: price, rebates: num('f_rebates'),
+    isUsed: finUsed, msrp: num('f_msrp'), price: num('f_price'), rebates: num('f_rebates'),
     tradeEquity: num('f_trade'), down: num('f_down'), apr: num('f_apr'),
     term: num('f_term'), benchmarkApr: num('f_bench'), docFee: num('f_doc'),
-    govFees: govFees, addons: num('f_addons'), taxPct: taxOn ? numOr('f_tax', CONFIG.taxRateDefault) : 0,
+    govFees: govFees, addons: num('f_addons'), taxPct: taxPct,
+    docFeeCap: docCap, stateLabel: stateLabel, taxTradeCredit: tradeCredit,
   };
   var res = scoreFinance(inputs);
   if (!res) {
-    $('results').innerHTML = '<div class="empty">Enter ' + (finUsed ? 'market value' : 'MSRP') + ', price, APR, and term.</div>';
+    $('results').innerHTML = '<div class="empty">' + (note ? '<div class="solvebox" style="text-align:left">' + note + '</div>' : '') +
+      'Enter ' + (finUsed ? 'market value' : 'MSRP') + ', ' + (targetOn ? 'target payment' : 'price') + ', APR, and term.</div>';
     return;
   }
   var q = res.quote;
@@ -404,7 +524,7 @@ function recalcFinance() {
     'Out the door: ' + money(q.amountFinanced + inputs.down + inputs.rebates + inputs.tradeEquity),
     'LTV ' + q.ltv.toFixed(0) + '%',
     'APR ' + (q.aprDelta >= 0 ? '+' : '') + q.aprDelta.toFixed(1) + ' vs market',
-  ]);
+  ], note);
 }
 
 function recalc() {
@@ -413,40 +533,38 @@ function recalc() {
 }
 
 // ------------------------------------------------------------- wiring ----
-var LEASE_IDS = ['l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_plate','l_tax'];
-var FIN_IDS = ['f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_reg','f_plate','f_tax'];
-var TOGGLE_IDS = ['l_tax_on','l_reg_on','l_plate_on','f_tax_on','f_reg_on','f_plate_on'];
+var LEASE_IDS = ['l_zip','l_target','l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_tax'];
+var FIN_IDS = ['f_zip','f_target','f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_reg','f_tax'];
+var CHECK_IDS = ['l_zipauto','f_zipauto','f_bench_auto','l_tax_on','l_reg_on','f_tax_on','f_reg_on','l_target_on','f_target_on'];
 
 function save() {
   var data = { mode: mode, finUsed: finUsed, v: {} };
   var ids = LEASE_IDS.concat(FIN_IDS);
   for (var i = 0; i < ids.length; i++) data.v[ids[i]] = $(ids[i]).value;
-  data.l_gov_auto = $('l_gov_auto').checked;
-  data.f_gov_auto = $('f_gov_auto').checked;
-  data.f_bench_auto = $('f_bench_auto').checked;
-  for (var t = 0; t < TOGGLE_IDS.length; t++) data[TOGGLE_IDS[t]] = $(TOGGLE_IDS[t]).checked;
-  try { localStorage.setItem('qcc_v1', JSON.stringify(data)); } catch (e) {}
+  for (var t = 0; t < CHECK_IDS.length; t++) data[CHECK_IDS[t]] = $(CHECK_IDS[t]).checked;
+  try { localStorage.setItem('qcc_v2', JSON.stringify(data)); } catch (e) {}
 }
 
 function load() {
   var raw = null;
-  try { raw = localStorage.getItem('qcc_v1'); } catch (e) {}
-  if (!raw) return;
-  try {
-    var data = JSON.parse(raw);
-    var ids = LEASE_IDS.concat(FIN_IDS);
-    for (var i = 0; i < ids.length; i++) {
-      if (data.v && data.v[ids[i]] !== undefined) $(ids[i]).value = data.v[ids[i]];
-    }
-    if (data.l_gov_auto !== undefined) $('l_gov_auto').checked = data.l_gov_auto;
-    if (data.f_gov_auto !== undefined) $('f_gov_auto').checked = data.f_gov_auto;
-    if (data.f_bench_auto !== undefined) $('f_bench_auto').checked = data.f_bench_auto;
-    for (var t = 0; t < TOGGLE_IDS.length; t++) {
-      if (data[TOGGLE_IDS[t]] !== undefined) $(TOGGLE_IDS[t]).checked = data[TOGGLE_IDS[t]];
-    }
-    if (data.finUsed) setUsed(true);
-    if (data.mode === 'finance') setMode('finance');
-  } catch (e) {}
+  try { raw = localStorage.getItem('qcc_v2'); } catch (e) {}
+  if (raw) {
+    try {
+      var data = JSON.parse(raw);
+      var ids = LEASE_IDS.concat(FIN_IDS);
+      for (var i = 0; i < ids.length; i++) {
+        if (data.v && data.v[ids[i]] !== undefined) $(ids[i]).value = data.v[ids[i]];
+      }
+      for (var t = 0; t < CHECK_IDS.length; t++) {
+        if (data[CHECK_IDS[t]] !== undefined) $(CHECK_IDS[t]).checked = data[CHECK_IDS[t]];
+      }
+      if (data.finUsed) setUsed(true);
+      if (data.mode === 'finance') setMode('finance');
+    } catch (e) {}
+  }
+  // Default ZIP to Irvine so tax + DMV fees are pre-dialed.
+  if (!$('l_zip').value) $('l_zip').value = '92618';
+  if (!$('f_zip').value) $('f_zip').value = '92618';
 }
 
 function setMode(m) {
@@ -478,50 +596,53 @@ for (var i = 0; i < all.length; i++) {
   $(all[i]).addEventListener('input', recalc);
   $(all[i]).addEventListener('change', recalc);
 }
-$('l_reg').addEventListener('input', function () { $('l_gov_auto').checked = false; });
-$('l_plate').addEventListener('input', function () { $('l_gov_auto').checked = false; });
-$('f_reg').addEventListener('input', function () { $('f_gov_auto').checked = false; });
-$('f_plate').addEventListener('input', function () { $('f_gov_auto').checked = false; });
+// Manual edits stop the ZIP/benchmark auto-fill from overwriting.
+$('l_tax').addEventListener('input', function () { $('l_zipauto').checked = false; });
+$('l_reg').addEventListener('input', function () { $('l_zipauto').checked = false; });
+$('f_tax').addEventListener('input', function () { $('f_zipauto').checked = false; });
+$('f_reg').addEventListener('input', function () { $('f_zipauto').checked = false; });
 $('f_bench').addEventListener('input', function () { $('f_bench_auto').checked = false; });
-$('l_gov_auto').addEventListener('change', recalc);
-$('f_gov_auto').addEventListener('change', recalc);
-$('f_bench_auto').addEventListener('change', recalc);
-for (var ti = 0; ti < TOGGLE_IDS.length; ti++) $(TOGGLE_IDS[ti]).addEventListener('change', recalc);
+// Keep the two ZIP fields in sync so location is set once.
+$('l_zip').addEventListener('input', function () { $('f_zip').value = $('l_zip').value; });
+$('f_zip').addEventListener('input', function () { $('l_zip').value = $('f_zip').value; });
+for (var ci = 0; ci < CHECK_IDS.length; ci++) $(CHECK_IDS[ci]).addEventListener('change', recalc);
 
-function setToggles(prefix) {
-  $(prefix + '_tax_on').checked = true;
-  $(prefix + '_reg_on').checked = true;
-  $(prefix + '_plate_on').checked = true;
-}
 $('l_example').addEventListener('click', function () {
+  $('l_zip').value = '92618'; $('f_zip').value = '92618';
   $('l_msrp').value = 58000; $('l_price').value = 52200; $('l_rebates').value = 1500;
   $('l_down').value = 0; $('l_mf').value = 0.00180; $('l_residual').value = 60;
   $('l_term').value = 36; $('l_acq').value = 695; $('l_doc').value = 85;
-  $('l_tax').value = 7.75; $('l_gov_auto').checked = true; setToggles('l');
+  $('l_target_on').checked = false; $('l_zipauto').checked = true;
+  $('l_tax_on').checked = true; $('l_reg_on').checked = true;
   recalc();
 });
 $('l_reset').addEventListener('click', function () {
   for (var i = 0; i < LEASE_IDS.length; i++) $(LEASE_IDS[i]).value = '';
-  $('l_rebates').value = 0; $('l_down').value = 0; $('l_acq').value = 695;
-  $('l_doc').value = 85; $('l_tax').value = 7.75; $('l_term').value = 36;
-  $('l_reg').value = 0; $('l_plate').value = 0; $('l_gov_auto').checked = true; setToggles('l');
+  $('l_zip').value = '92618'; $('l_rebates').value = 0; $('l_down').value = 0;
+  $('l_acq').value = 695; $('l_doc').value = 85; $('l_tax').value = 7.75;
+  $('l_term').value = 36; $('l_reg').value = 0;
+  $('l_target_on').checked = false; $('l_zipauto').checked = true;
+  $('l_tax_on').checked = true; $('l_reg_on').checked = true;
   recalc();
 });
 $('f_example').addEventListener('click', function () {
   setUsed(false);
+  $('f_zip').value = '92618'; $('l_zip').value = '92618';
   $('f_msrp').value = 43000; $('f_price').value = 39900; $('f_rebates').value = 1000;
   $('f_trade').value = 0; $('f_down').value = 4000; $('f_apr').value = 5.9;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_addons').value = 0;
-  $('f_doc').value = 85; $('f_tax').value = 7.75;
-  $('f_gov_auto').checked = true; $('f_bench_auto').checked = true; setToggles('f');
+  $('f_doc').value = 85;
+  $('f_target_on').checked = false; $('f_zipauto').checked = true;
+  $('f_bench_auto').checked = true; $('f_tax_on').checked = true; $('f_reg_on').checked = true;
   recalc();
 });
 $('f_reset').addEventListener('click', function () {
   for (var i = 0; i < FIN_IDS.length; i++) $(FIN_IDS[i]).value = '';
-  $('f_rebates').value = 0; $('f_trade').value = 0; $('f_down').value = 0;
-  $('f_addons').value = 0; $('f_doc').value = 85; $('f_tax').value = 7.75;
-  $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_reg').value = 0; $('f_plate').value = 0;
-  $('f_gov_auto').checked = true; $('f_bench_auto').checked = true; setToggles('f');
+  $('f_zip').value = '92618'; $('f_rebates').value = 0; $('f_trade').value = 0;
+  $('f_down').value = 0; $('f_addons').value = 0; $('f_doc').value = 85; $('f_tax').value = 7.75;
+  $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_reg').value = 0;
+  $('f_target_on').checked = false; $('f_zipauto').checked = true;
+  $('f_bench_auto').checked = true; $('f_tax_on').checked = true; $('f_reg_on').checked = true;
   recalc();
 });
 
