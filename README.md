@@ -97,6 +97,15 @@ The finance tab will not show a score until you enter the APR — an empty APR
 field turns red and the result area says so. Without it the math would assume
 0% and flash a fake "great deal"; a real 0% promo still works if you type `0`.
 
+## Vehicle picker
+
+Both tabs have an optional **"Pick a vehicle"** dropdown (grouped by make) backed
+by a curated inventory in calc.mjs (`VEHICLES`). Choosing one fills the **MSRP /
+price**, and on lease the **money factor + residual** (typical 36mo/12k). These
+are representative 2026 starting points — captives reset money factors and
+residuals monthly, so they're labeled "confirm with the dealer" and stay
+editable. Add models by appending to `VEHICLES` (keep it sorted by make).
+
 ## Download offer image
 
 A **Download offer image** button at the bottom of the results generates a

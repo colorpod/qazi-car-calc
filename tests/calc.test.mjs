@@ -5,7 +5,7 @@ import {
   leaseQuote, scoreLease, financeQuote, scoreFinance,
   marketApr, bestBankApr, resolveZip, docFeeCapForState,
   solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown,
-  amortizeThrough, financeEarlyExit, affordabilityPayment, AFFORDABILITY,
+  amortizeThrough, financeEarlyExit, affordabilityPayment, AFFORDABILITY, VEHICLES,
 } from '../calc.mjs';
 
 const close = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, (msg || '') + ' got ' + a + ' want ' + b + ' ±' + tol);
@@ -321,6 +321,19 @@ test('existing car costs come off every tier', () => {
   assert.ok(affordabilityPayment(9000, 'conservative', 900) <= 0);
   // Blank/zero existing behaves like before.
   assert.equal(affordabilityPayment(9000, 'comfortable', 0), affordabilityPayment(9000, 'comfortable'));
+});
+
+test('vehicle inventory is well-formed', () => {
+  assert.ok(VEHICLES.length >= 20, 'has a decent roster');
+  for (const v of VEHICLES) {
+    assert.ok(v.mk && v.md, 'make + model present');
+    assert.ok(v.msrp > 5000 && v.msrp < 200000, 'plausible MSRP: ' + v.md);
+    assert.ok(v.mf >= 0 && v.mf < 0.01, 'plausible money factor: ' + v.md);
+    assert.ok(v.res > 30 && v.res < 80, 'plausible residual: ' + v.md);
+  }
+  // Sorted by make so the grouped <select> builds clean optgroups.
+  const makes = VEHICLES.map(v => v.mk);
+  assert.deepEqual(makes, makes.slice().sort((a, b) => a.localeCompare(b)), 'sorted by make');
 });
 
 test('config sanity', () => {

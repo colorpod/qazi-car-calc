@@ -12,9 +12,9 @@ const outDir = path.join(root, 'assets', 'brand');
 fs.mkdirSync(outDir, { recursive: true });
 
 const S = 1024;
-const CORNER = '#c8580f';     // outside the squircle (matches suite corner pixel)
-const CREAM = '#fedca3';      // suite cream
-const HUB = '#ec6204';        // gauge hub center (orange)
+const CORNER = '#c75f1a';     // outside the squircle (matches suite corner pixel)
+const CREAM = '#fee3b0';      // suite cream
+const HUB = '#ef6f10';        // gauge hub center (orange)
 
 // Polar helper, SVG y-down: angle increases clockwise over the top.
 const pt = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -49,10 +49,10 @@ function buildSvg() {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="38%" r="72%">
-      <stop offset="0%" stop-color="#f5780f"/>
-      <stop offset="52%" stop-color="#ec6204"/>
-      <stop offset="100%" stop-color="#cf5d0d"/>
+    <radialGradient id="bg" cx="46%" cy="36%" r="76%">
+      <stop offset="0%" stop-color="#fd8016"/>
+      <stop offset="55%" stop-color="#f4720e"/>
+      <stop offset="100%" stop-color="#e2680c"/>
     </radialGradient>
     <filter id="lift" x="-25%" y="-25%" width="150%" height="150%">
       <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#7a3408" flood-opacity="0.45"/>

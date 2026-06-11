@@ -1,21 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="38%" r="72%">
-      <stop offset="0%" stop-color="#f5780f"/>
-      <stop offset="52%" stop-color="#ec6204"/>
-      <stop offset="100%" stop-color="#cf5d0d"/>
+    <radialGradient id="bg" cx="46%" cy="36%" r="76%">
+      <stop offset="0%" stop-color="#fd8016"/>
+      <stop offset="55%" stop-color="#f4720e"/>
+      <stop offset="100%" stop-color="#e2680c"/>
     </radialGradient>
     <filter id="lift" x="-25%" y="-25%" width="150%" height="150%">
       <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#7a3408" flood-opacity="0.45"/>
     </filter>
   </defs>
-  <rect x="0" y="0" width="1024" height="1024" fill="#c8580f"/>
+  <rect x="0" y="0" width="1024" height="1024" fill="#c75f1a"/>
   <rect x="0" y="0" width="1024" height="1024" rx="232" ry="232" fill="url(#bg)"/>
-  <g filter="url(#lift)" fill="none" stroke="#fedca3" stroke-linecap="round">
+  <g filter="url(#lift)" fill="none" stroke="#fee3b0" stroke-linecap="round">
     <path d="M 222.9 680.0 A 300 300 0 1 1 801.1 680.0" stroke-width="66"/>
-    <line x1="263.3" y1="612.2" x2="305.2" y2="610.2" stroke="#fedca3" stroke-width="20" stroke-linecap="round"/><line x1="512.0" y1="351.0" x2="512.0" y2="393.0" stroke="#fedca3" stroke-width="20" stroke-linecap="round"/><line x1="760.7" y1="612.2" x2="718.8" y2="610.2" stroke="#fedca3" stroke-width="20" stroke-linecap="round"/>
-    <polygon points="530.7,611.5 641.8,388.7 493.3,588.5" fill="#fedca3" stroke="#fedca3" stroke-width="14" stroke-linejoin="round"/>
-    <circle cx="512" cy="600" r="50" fill="#fedca3" stroke="none"/>
-    <circle cx="512" cy="600" r="19" fill="#ec6204" stroke="none"/>
+    <line x1="263.3" y1="612.2" x2="305.2" y2="610.2" stroke="#fee3b0" stroke-width="20" stroke-linecap="round"/><line x1="512.0" y1="351.0" x2="512.0" y2="393.0" stroke="#fee3b0" stroke-width="20" stroke-linecap="round"/><line x1="760.7" y1="612.2" x2="718.8" y2="610.2" stroke="#fee3b0" stroke-width="20" stroke-linecap="round"/>
+    <polygon points="530.7,611.5 641.8,388.7 493.3,588.5" fill="#fee3b0" stroke="#fee3b0" stroke-width="14" stroke-linejoin="round"/>
+    <circle cx="512" cy="600" r="50" fill="#fee3b0" stroke="none"/>
+    <circle cx="512" cy="600" r="19" fill="#ef6f10" stroke="none"/>
   </g>
 </svg>

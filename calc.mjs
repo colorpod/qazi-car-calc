@@ -72,6 +72,45 @@ export function affordabilityPayment(grossMonthly, level, existingMonthly) {
   return Math.round(budget - (existingMonthly > 0 ? existingMonthly : 0));
 }
 
+// ---------------------------------------------------------- VEHICLES ----
+// Curated 2026 starting points so you can pick a car instead of hunting specs.
+// msrp = sticker; mf + res are TYPICAL lease terms at 36mo/12k (captives reset
+// these monthly, so confirm with the dealer). Editable after you pick.
+export const VEHICLES = [
+  { mk: 'Acura', md: 'Integra A-Spec', msrp: 36000, mf: 0.00130, res: 58 },
+  { mk: 'Acura', md: 'MDX Technology', msrp: 56000, mf: 0.00150, res: 57 },
+  { mk: 'Audi', md: 'A4 Premium', msrp: 45000, mf: 0.00160, res: 57 },
+  { mk: 'Audi', md: 'Q5 45 Premium', msrp: 50000, mf: 0.00155, res: 59 },
+  { mk: 'BMW', md: '330i', msrp: 47000, mf: 0.00160, res: 60 },
+  { mk: 'BMW', md: 'X3 30i', msrp: 51000, mf: 0.00150, res: 61 },
+  { mk: 'BMW', md: 'X5 xDrive40i', msrp: 67000, mf: 0.00160, res: 60 },
+  { mk: 'Chevrolet', md: 'Silverado 1500 LT', msrp: 47000, mf: 0.00150, res: 56 },
+  { mk: 'Ford', md: 'F-150 XLT', msrp: 48000, mf: 0.00140, res: 58 },
+  { mk: 'Ford', md: 'Mustang Mach-E Premium', msrp: 50000, mf: 0.00150, res: 53 },
+  { mk: 'Genesis', md: 'GV70 2.5T', msrp: 50000, mf: 0.00140, res: 56 },
+  { mk: 'Honda', md: 'Accord EX', msrp: 31000, mf: 0.00115, res: 60 },
+  { mk: 'Honda', md: 'Civic Sport', msrp: 28000, mf: 0.00110, res: 62 },
+  { mk: 'Honda', md: 'CR-V EX', msrp: 34000, mf: 0.00120, res: 63 },
+  { mk: 'Hyundai', md: 'Ioniq 5 SEL', msrp: 47000, mf: 0.00120, res: 55 },
+  { mk: 'Jeep', md: 'Grand Cherokee Laredo', msrp: 45000, mf: 0.00170, res: 55 },
+  { mk: 'Kia', md: 'EV6 Wind', msrp: 49000, mf: 0.00125, res: 55 },
+  { mk: 'Kia', md: 'Telluride EX', msrp: 44000, mf: 0.00120, res: 60 },
+  { mk: 'Lexus', md: 'ES 350', msrp: 46000, mf: 0.00125, res: 60 },
+  { mk: 'Lexus', md: 'RX 350', msrp: 52000, mf: 0.00130, res: 63 },
+  { mk: 'Mazda', md: 'CX-5 Preferred', msrp: 32000, mf: 0.00115, res: 59 },
+  { mk: 'Mercedes-Benz', md: 'C 300', msrp: 49000, mf: 0.00165, res: 58 },
+  { mk: 'Mercedes-Benz', md: 'GLC 300', msrp: 52000, mf: 0.00160, res: 60 },
+  { mk: 'Porsche', md: 'Macan', msrp: 65000, mf: 0.00170, res: 60 },
+  { mk: 'Rivian', md: 'R1S Adventure', msrp: 78000, mf: 0.00250, res: 52 },
+  { mk: 'Rivian', md: 'R1T Adventure', msrp: 72000, mf: 0.00250, res: 53 },
+  { mk: 'Subaru', md: 'Outback Premium', msrp: 33000, mf: 0.00120, res: 60 },
+  { mk: 'Tesla', md: 'Model 3 Long Range', msrp: 47000, mf: 0.00180, res: 57 },
+  { mk: 'Tesla', md: 'Model Y Long Range', msrp: 50000, mf: 0.00180, res: 58 },
+  { mk: 'Toyota', md: 'Camry SE', msrp: 30000, mf: 0.00100, res: 62 },
+  { mk: 'Toyota', md: 'RAV4 XLE', msrp: 34000, mf: 0.00110, res: 64 },
+  { mk: 'Toyota', md: 'Tacoma SR5', msrp: 38000, mf: 0.00100, res: 68 },
+];
+
 // ------------------------------------------------------ LOCATION / TAX ----
 // ZIP -> state, then state -> vehicle sales-tax rate, DMV fee model, doc-fee
 // cap, and whether the state credits a trade-in against the taxable price.
