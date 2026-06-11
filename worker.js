@@ -64,6 +64,10 @@ const PAGE_HTML = `<!doctype html>
   .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
   .check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin: -4px 0 11px; }
   .check input { width: auto; }
+  .tlabel { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 4px; cursor: pointer; user-select: none; }
+  .tlabel input { width: auto; margin: 0; accent-color: var(--accent); }
+  .field input.off { opacity: 0.38; }
+  .field.off-field .hint { color: var(--weak); }
   .btns { display: flex; gap: 8px; margin-top: 6px; }
   .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
     background: var(--card2); color: var(--muted); cursor: pointer; font-size: 13px; }
@@ -141,10 +145,14 @@ const PAGE_HTML = `<!doctype html>
           <div class="field"><label>Doc fee $</label><input id="l_doc" type="number" step="5" value="85"><div class="hint">CA legal max is $85.</div></div>
         </div>
         <div class="row">
-          <div class="field"><label>Government / DMV fees $</label><input id="l_gov" type="number" step="5" value="0"></div>
-          <div class="field"><label>Sales tax %</label><input id="l_tax" type="number" step="0.05" value="7.75"></div>
+          <div class="field"><label class="tlabel"><input id="l_tax_on" type="checkbox" checked> Sales tax %</label><input id="l_tax" type="number" step="0.05" value="7.75"><div class="hint">Uncheck to exclude tax from the deal.</div></div>
+          <div class="field"><label class="tlabel"><input id="l_reg_on" type="checkbox" checked> Registration fee $</label><input id="l_reg" type="number" step="5" value="0"><div class="hint">DMV registration + VLF.</div></div>
         </div>
-        <div class="check"><input id="l_gov_auto" type="checkbox" checked><label for="l_gov_auto">Auto-estimate CA DMV fees from price</label></div>
+        <div class="row">
+          <div class="field"><label class="tlabel"><input id="l_plate_on" type="checkbox" checked> License / plate fee $</label><input id="l_plate" type="number" step="5" value="0"></div>
+          <div class="field"></div>
+        </div>
+        <div class="check"><input id="l_gov_auto" type="checkbox" checked><label for="l_gov_auto">Auto-estimate registration + plate from price</label></div>
         <div class="btns">
           <button class="btn" id="l_example">Load example</button>
           <button class="btn" id="l_reset">Reset</button>
@@ -186,13 +194,13 @@ const PAGE_HTML = `<!doctype html>
         </div>
         <div class="row">
           <div class="field"><label>Doc fee $</label><input id="f_doc" type="number" step="5" value="85"></div>
-          <div class="field"><label>Government / DMV fees $</label><input id="f_gov" type="number" step="5" value="0"></div>
+          <div class="field"><label class="tlabel"><input id="f_tax_on" type="checkbox" checked> Sales tax %</label><input id="f_tax" type="number" step="0.05" value="7.75"><div class="hint">Uncheck to exclude tax from the deal.</div></div>
         </div>
         <div class="row">
-          <div class="field"><label>Sales tax %</label><input id="f_tax" type="number" step="0.05" value="7.75"></div>
-          <div class="field"></div>
+          <div class="field"><label class="tlabel"><input id="f_reg_on" type="checkbox" checked> Registration fee $</label><input id="f_reg" type="number" step="5" value="0"><div class="hint">DMV registration + VLF.</div></div>
+          <div class="field"><label class="tlabel"><input id="f_plate_on" type="checkbox" checked> License / plate fee $</label><input id="f_plate" type="number" step="5" value="0"></div>
         </div>
-        <div class="check"><input id="f_gov_auto" type="checkbox" checked><label for="f_gov_auto">Auto-estimate CA DMV fees from price</label></div>
+        <div class="check"><input id="f_gov_auto" type="checkbox" checked><label for="f_gov_auto">Auto-estimate registration + plate from price</label></div>
         <div class="check"><input id="f_bench_auto" type="checkbox" checked><label for="f_bench_auto">Auto-fill benchmark APR from credit tier</label></div>
         <div class="btns">
           <button class="btn" id="f_example">Load example</button>
@@ -236,7 +244,7 @@ const PAGE_HTML = `<!doctype html>
 </div>
 
 <script type="module">
-import { CONFIG, estimateGovFees, scoreLease, scoreFinance } from '/calc.mjs';
+import { CONFIG, estimateRegistration, estimatePlateFee, scoreLease, scoreFinance } from '/calc.mjs';
 
 var $ = function (id) { return document.getElementById(id); };
 var mode = 'lease';
@@ -252,6 +260,17 @@ function money2(x) {
 }
 function num(id) { var v = parseFloat($(id).value); return isFinite(v) ? v : 0; }
 function numOr(id, dflt) { var v = parseFloat($(id).value); return isFinite(v) ? v : dflt; }
+
+// A toggleable line: returns its dollar value when checked, else 0, and dims
+// the input + flips its hint to "excluded" colour when off. Keeps the typed
+// value so re-checking restores it.
+function togVal(onId, valId) {
+  var on = $(onId).checked;
+  var inp = $(valId);
+  inp.classList.toggle('off', !on);
+  if (inp.parentNode) inp.parentNode.classList.toggle('off-field', !on);
+  return on ? num(valId) : 0;
+}
 
 var toneColor = { great: 'var(--great)', good: 'var(--good)', fair: 'var(--fair)', weak: 'var(--weak)', bad: 'var(--bad)' };
 
@@ -317,12 +336,18 @@ function renderResult(res, bigs, chips) {
 
 function recalcLease() {
   var price = num('l_price');
-  if ($('l_gov_auto').checked && price > 0) $('l_gov').value = estimateGovFees(price);
+  if ($('l_gov_auto').checked && price > 0) {
+    $('l_reg').value = estimateRegistration(price);
+    $('l_plate').value = estimatePlateFee(price);
+  }
+  var govFees = togVal('l_reg_on', 'l_reg') + togVal('l_plate_on', 'l_plate');
+  var taxOn = $('l_tax_on').checked;
+  $('l_tax').classList.toggle('off', !taxOn);
   var inputs = {
     msrp: num('l_msrp'), price: price, rebates: num('l_rebates'), down: num('l_down'),
-    acqFee: num('l_acq'), docFee: num('l_doc'), govFees: num('l_gov'),
+    acqFee: num('l_acq'), docFee: num('l_doc'), govFees: govFees,
     mf: num('l_mf'), residualPct: num('l_residual'),
-    term: num('l_term'), taxPct: numOr('l_tax', CONFIG.taxRateDefault),
+    term: num('l_term'), taxPct: taxOn ? numOr('l_tax', CONFIG.taxRateDefault) : 0,
   };
   var mfApr = inputs.mf * 2400;
   $('l_mf_hint').textContent = inputs.mf > 0
@@ -335,7 +360,7 @@ function recalcLease() {
   }
   var q = res.quote;
   renderResult(res, [
-    ['Monthly (with tax)', money2(q.payment)],
+    [taxOn ? 'Monthly (with tax)' : 'Monthly (no tax)', money2(q.payment)],
     ['Drive-off cash', money(q.driveOff)],
     ['Total lease cost', money(q.totalCost)],
   ], [
@@ -348,16 +373,22 @@ function recalcLease() {
 
 function recalcFinance() {
   var price = num('f_price');
-  if ($('f_gov_auto').checked && price > 0) $('f_gov').value = estimateGovFees(price);
+  if ($('f_gov_auto').checked && price > 0) {
+    $('f_reg').value = estimateRegistration(price);
+    $('f_plate').value = estimatePlateFee(price);
+  }
   if ($('f_bench_auto').checked) {
     var table = finUsed ? CONFIG.benchmarks.used : CONFIG.benchmarks.new;
     $('f_bench').value = table[$('f_tier').value];
   }
+  var govFees = togVal('f_reg_on', 'f_reg') + togVal('f_plate_on', 'f_plate');
+  var taxOn = $('f_tax_on').checked;
+  $('f_tax').classList.toggle('off', !taxOn);
   var inputs = {
     isUsed: finUsed, msrp: num('f_msrp'), price: price, rebates: num('f_rebates'),
     tradeEquity: num('f_trade'), down: num('f_down'), apr: num('f_apr'),
     term: num('f_term'), benchmarkApr: num('f_bench'), docFee: num('f_doc'),
-    govFees: num('f_gov'), addons: num('f_addons'), taxPct: numOr('f_tax', CONFIG.taxRateDefault),
+    govFees: govFees, addons: num('f_addons'), taxPct: taxOn ? numOr('f_tax', CONFIG.taxRateDefault) : 0,
   };
   var res = scoreFinance(inputs);
   if (!res) {
@@ -382,8 +413,9 @@ function recalc() {
 }
 
 // ------------------------------------------------------------- wiring ----
-var LEASE_IDS = ['l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_gov','l_tax'];
-var FIN_IDS = ['f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_gov','f_tax'];
+var LEASE_IDS = ['l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_plate','l_tax'];
+var FIN_IDS = ['f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_reg','f_plate','f_tax'];
+var TOGGLE_IDS = ['l_tax_on','l_reg_on','l_plate_on','f_tax_on','f_reg_on','f_plate_on'];
 
 function save() {
   var data = { mode: mode, finUsed: finUsed, v: {} };
@@ -392,6 +424,7 @@ function save() {
   data.l_gov_auto = $('l_gov_auto').checked;
   data.f_gov_auto = $('f_gov_auto').checked;
   data.f_bench_auto = $('f_bench_auto').checked;
+  for (var t = 0; t < TOGGLE_IDS.length; t++) data[TOGGLE_IDS[t]] = $(TOGGLE_IDS[t]).checked;
   try { localStorage.setItem('qcc_v1', JSON.stringify(data)); } catch (e) {}
 }
 
@@ -408,6 +441,9 @@ function load() {
     if (data.l_gov_auto !== undefined) $('l_gov_auto').checked = data.l_gov_auto;
     if (data.f_gov_auto !== undefined) $('f_gov_auto').checked = data.f_gov_auto;
     if (data.f_bench_auto !== undefined) $('f_bench_auto').checked = data.f_bench_auto;
+    for (var t = 0; t < TOGGLE_IDS.length; t++) {
+      if (data[TOGGLE_IDS[t]] !== undefined) $(TOGGLE_IDS[t]).checked = data[TOGGLE_IDS[t]];
+    }
     if (data.finUsed) setUsed(true);
     if (data.mode === 'finance') setMode('finance');
   } catch (e) {}
@@ -442,25 +478,33 @@ for (var i = 0; i < all.length; i++) {
   $(all[i]).addEventListener('input', recalc);
   $(all[i]).addEventListener('change', recalc);
 }
-$('l_gov').addEventListener('input', function () { $('l_gov_auto').checked = false; });
-$('f_gov').addEventListener('input', function () { $('f_gov_auto').checked = false; });
+$('l_reg').addEventListener('input', function () { $('l_gov_auto').checked = false; });
+$('l_plate').addEventListener('input', function () { $('l_gov_auto').checked = false; });
+$('f_reg').addEventListener('input', function () { $('f_gov_auto').checked = false; });
+$('f_plate').addEventListener('input', function () { $('f_gov_auto').checked = false; });
 $('f_bench').addEventListener('input', function () { $('f_bench_auto').checked = false; });
 $('l_gov_auto').addEventListener('change', recalc);
 $('f_gov_auto').addEventListener('change', recalc);
 $('f_bench_auto').addEventListener('change', recalc);
+for (var ti = 0; ti < TOGGLE_IDS.length; ti++) $(TOGGLE_IDS[ti]).addEventListener('change', recalc);
 
+function setToggles(prefix) {
+  $(prefix + '_tax_on').checked = true;
+  $(prefix + '_reg_on').checked = true;
+  $(prefix + '_plate_on').checked = true;
+}
 $('l_example').addEventListener('click', function () {
   $('l_msrp').value = 58000; $('l_price').value = 52200; $('l_rebates').value = 1500;
   $('l_down').value = 0; $('l_mf').value = 0.00180; $('l_residual').value = 60;
   $('l_term').value = 36; $('l_acq').value = 695; $('l_doc').value = 85;
-  $('l_tax').value = 7.75; $('l_gov_auto').checked = true;
+  $('l_tax').value = 7.75; $('l_gov_auto').checked = true; setToggles('l');
   recalc();
 });
 $('l_reset').addEventListener('click', function () {
   for (var i = 0; i < LEASE_IDS.length; i++) $(LEASE_IDS[i]).value = '';
   $('l_rebates').value = 0; $('l_down').value = 0; $('l_acq').value = 695;
   $('l_doc').value = 85; $('l_tax').value = 7.75; $('l_term').value = 36;
-  $('l_gov').value = 0; $('l_gov_auto').checked = true;
+  $('l_reg').value = 0; $('l_plate').value = 0; $('l_gov_auto').checked = true; setToggles('l');
   recalc();
 });
 $('f_example').addEventListener('click', function () {
@@ -469,15 +513,15 @@ $('f_example').addEventListener('click', function () {
   $('f_trade').value = 0; $('f_down').value = 4000; $('f_apr').value = 5.9;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_addons').value = 0;
   $('f_doc').value = 85; $('f_tax').value = 7.75;
-  $('f_gov_auto').checked = true; $('f_bench_auto').checked = true;
+  $('f_gov_auto').checked = true; $('f_bench_auto').checked = true; setToggles('f');
   recalc();
 });
 $('f_reset').addEventListener('click', function () {
   for (var i = 0; i < FIN_IDS.length; i++) $(FIN_IDS[i]).value = '';
   $('f_rebates').value = 0; $('f_trade').value = 0; $('f_down').value = 0;
   $('f_addons').value = 0; $('f_doc').value = 85; $('f_tax').value = 7.75;
-  $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_gov').value = 0;
-  $('f_gov_auto').checked = true; $('f_bench_auto').checked = true;
+  $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_reg').value = 0; $('f_plate').value = 0;
+  $('f_gov_auto').checked = true; $('f_bench_auto').checked = true; setToggles('f');
   recalc();
 });
 

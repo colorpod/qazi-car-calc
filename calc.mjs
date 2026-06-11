@@ -14,6 +14,10 @@ export const CONFIG = {
   acqFeeHigh: 1095,            // above this is a marked-up acquisition fee
   govFeeRate: 0.012,           // CA DMV estimate: ~1.2% of price (VLF + reg)
   govFeeBase: 115,
+  // Split estimate so registration and plate/title can be toggled separately.
+  regFeeRate: 0.011,           // registration + VLF + CHP, ~1.1% of value
+  regFeeBase: 80,              // base registration + county/district fees
+  plateFee: 35,                // license plate + title, roughly fixed in CA
   // Average auto-loan APR by credit tier, Experian-style, mid-2026.
   // Editable in the UI; these are fallbacks, not gospel.
   benchmarks: {
@@ -44,9 +48,21 @@ export function lerpCurve(points, x) {
   return last[1];
 }
 
+export function estimateRegistration(price) {
+  if (!(price > 0)) return 0;
+  return Math.round(CONFIG.regFeeRate * price + CONFIG.regFeeBase);
+}
+
+export function estimatePlateFee(price) {
+  if (!(price > 0)) return 0;
+  return CONFIG.plateFee;
+}
+
+// Combined DMV estimate (registration + plate/title). Kept for callers that
+// want a single number; the UI uses the split estimators above.
 export function estimateGovFees(price) {
   if (!(price > 0)) return 0;
-  return Math.round(CONFIG.govFeeRate * price + CONFIG.govFeeBase);
+  return estimateRegistration(price) + estimatePlateFee(price);
 }
 
 export function verdictFor(score) {
@@ -315,7 +331,7 @@ export function scoreFinance(i) {
   if ((i.tradeEquity || 0) < 0) {
     flags.push({ level: 'warn', msg: 'Negative trade equity is being rolled into this loan.' });
   }
-  if ((i.rebates || 0) > 0) {
+  if ((i.rebates || 0) > 0 && (i.taxPct || 0) > 0) {
     flags.push({ level: 'info', msg: 'CA taxes the price before rebates, so the rebate does not reduce your sales tax.' });
   }
 

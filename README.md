@@ -28,8 +28,18 @@ great, good, fair, below average, or bad, and exactly why.
   what you're taxed on.
 - **Doc fee**: taxable, legal cap **$85** statewide. Anything above gets
   flagged.
-- **DMV/government fees**: auto-estimated at ~1.2% of price + $115
-  (VLF + registration). Editable; padded fees above 2.5% of price get flagged.
+- **DMV/government fees**: split into **registration** (~1.1% of price + $80,
+  covers VLF) and **license/plate** ($35 flat). Both auto-estimated from price,
+  editable; padded fees above 2.5% of price get flagged.
+
+### Excluding tax and fees
+
+Sales tax, registration, and license/plate each have a checkbox. Uncheck any of
+them to drop that cost from the calculation (the typed value is kept, so
+re-checking restores it). Useful for out-of-state buys, comparing the
+vehicle-plus-financing cost in isolation, or when you've accounted for a fee
+elsewhere. With tax unchecked the lease payment is labeled "(no tax)" and the
+finance rebate-tax note is suppressed.
 
 ## Lease scoring (0-100)
 

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, lerpCurve, estimateGovFees, verdictFor,
-  leaseQuote, scoreLease, financeQuote, scoreFinance,
+  CONFIG, lerpCurve, estimateGovFees, estimateRegistration, estimatePlateFee,
+  verdictFor, leaseQuote, scoreLease, financeQuote, scoreFinance,
 } from '../calc.mjs';
 
 const close = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, (msg || '') + ' got ' + a + ' want ' + b + ' ±' + tol);
@@ -26,9 +26,31 @@ test('verdict bands', () => {
   assert.equal(verdictFor(20).label, 'BAD DEAL');
 });
 
-test('gov fee estimate', () => {
-  assert.equal(estimateGovFees(40000), Math.round(0.012 * 40000 + 115));
+test('gov fee estimate split', () => {
+  assert.equal(estimateRegistration(40000), Math.round(0.011 * 40000 + 80));
+  assert.equal(estimatePlateFee(40000), CONFIG.plateFee);
+  assert.equal(estimateGovFees(40000), estimateRegistration(40000) + estimatePlateFee(40000));
   assert.equal(estimateGovFees(0), 0);
+  assert.equal(estimateRegistration(0), 0);
+  assert.equal(estimatePlateFee(0), 0);
+});
+
+test('toggling tax and fees off lowers cost', () => {
+  const base = {
+    msrp: 50000, price: 46000, rebates: 0, down: 0, acqFee: 695,
+    docFee: 85, govFees: 600, mf: 0.00225, residualPct: 58, term: 36, taxPct: 7.75,
+  };
+  const withTax = leaseQuote(base);
+  const noTax = leaseQuote({ ...base, taxPct: 0 });
+  assert.ok(noTax.totalCost < withTax.totalCost, 'no-tax lease should cost less');
+  const noFees = leaseQuote({ ...base, govFees: 0 });
+  assert.ok(noFees.driveOff < withTax.driveOff, 'dropping gov fees lowers drive-off');
+  // Finance: excluding tax removes the rebate-tax info flag.
+  const fin = scoreFinance({
+    isUsed: false, msrp: 40000, price: 40000, rebates: 3000, down: 0, apr: 6,
+    term: 60, benchmarkApr: 6.6, docFee: 85, govFees: 0, taxPct: 0,
+  });
+  assert.equal(fin.flags.some(f => f.msg.includes('before rebates')), false);
 });
 
 test('lease math: standard CA example', () => {
