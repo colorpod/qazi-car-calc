@@ -55,6 +55,19 @@ export function bestBankApr(isUsed, tier, term) {
   return Math.max(0, +(base + lerpCurve(CONFIG.benchmarkTermAdj, term || 60)).toFixed(2));
 }
 
+// Recommended car payment as a share of GROSS monthly income, by appetite.
+// Conservative ~= the textbook "10% of take-home" rule; aggressive is car-guy.
+export const AFFORDABILITY = {
+  conservative: { pct: 0.08, label: 'Conservative', tag: 'Safe' },
+  comfortable:  { pct: 0.12, label: 'Comfortable', tag: 'Balanced' },
+  aggressive:   { pct: 0.18, label: 'Aggressive', tag: 'Car guy' },
+};
+export function affordabilityPayment(grossMonthly, level) {
+  const a = AFFORDABILITY[level];
+  if (!(grossMonthly > 0) || !a) return null;
+  return Math.round(grossMonthly * a.pct);
+}
+
 // ------------------------------------------------------ LOCATION / TAX ----
 // ZIP -> state, then state -> vehicle sales-tax rate, DMV fee model, doc-fee
 // cap, and whether the state credits a trade-in against the taxable price.

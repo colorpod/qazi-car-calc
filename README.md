@@ -76,6 +76,26 @@ squircle, matching the Qazi Agent OS house style (run `node scripts/gen-logo.mjs
 to regenerate from `qazi-repo-logo.svg`; needs the `sharp` devDependency). The
 worker serves it at `/icon.png` (favicon + apple-touch-icon + header mark).
 
+## Affordability picker (finance)
+
+The finance tab leads with an affordability hero: enter your **gross monthly
+income**, pick an appetite — **Conservative** (8% of income), **Comfortable**
+(12%), or **Aggressive / car-guy** (18%) — and it fills your target monthly
+payment, then solves the car price you can afford (or the down payment). The
+percentages live in `AFFORDABILITY` / `affordabilityPayment` in calc.mjs.
+
+## APR is required
+
+The finance tab will not show a score until you enter the APR — an empty APR
+field turns red and the result area says so. Without it the math would assume
+0% and flash a fake "great deal"; a real 0% promo still works if you type `0`.
+
+## Mobile-first
+
+Single centered app column (~460px) on every screen, 16px inputs (no iOS
+zoom), big tap targets, and a terse score breakdown (label + score + bar).
+Defaults to Finance + Used car on first load.
+
 ## Solve for a target payment
 
 Flip on **"Solve for a target monthly payment"**, type your max $/mo, and pick

@@ -54,85 +54,104 @@ const PAGE_HTML = `<!doctype html>
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 26px; margin: 0; letter-spacing: -0.02em; }
-  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
-  .brand-logo { width: 46px; height: 46px; border-radius: 11px; flex: none; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
-  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-  .tab { flex: 1; padding: 12px; text-align: center; background: var(--card);
-    border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
-    font-weight: 600; color: var(--muted); user-select: none; }
-  .tab.active { color: var(--text); border-color: var(--accent); background: var(--card2); }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
-  .card h2 { font-size: 15px; margin: 0 0 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  /* Mobile-first: a single centered app column on every screen. */
+  .wrap { max-width: 460px; margin: 0 auto; padding: 18px 14px 56px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.02em; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 6px; }
+  .brand-logo { width: 40px; height: 40px; border-radius: 10px; flex: none; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 13px; line-height: 1.4; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab { flex: 1; padding: 13px; text-align: center; background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; cursor: pointer;
+    font-weight: 700; font-size: 15px; color: var(--muted); user-select: none; }
+  .tab.active { color: #14100b; border-color: var(--accent); background: var(--accent); }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .card h2 { font-size: 12px; margin: 0 0 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .field { margin-bottom: 11px; }
-  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-  .field input, .field select { width: 100%; padding: 9px 10px; background: var(--card2);
-    border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 15px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .field input, .field select { width: 100%; padding: 12px 12px; background: var(--card2);
+    border: 1px solid var(--line); border-radius: 10px; color: var(--text); font-size: 16px; }
   .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
-  .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
-  .check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin: -4px 0 11px; }
-  .check input { width: auto; }
-  .tlabel { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 4px; cursor: pointer; user-select: none; }
-  .tlabel input { width: auto; margin: 0; accent-color: var(--accent); }
-  .field input.off { opacity: 0.38; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin: -2px 0 12px; }
+  .check input { width: auto; width: 18px; height: 18px; accent-color: var(--accent); }
+  .tlabel { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 5px; cursor: pointer; user-select: none; }
+  .tlabel input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+  .field input.off, .field select.off { opacity: 0.4; }
   .field.off-field .hint { color: var(--weak); }
-  .btns { display: flex; gap: 8px; margin-top: 6px; }
-  .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
-    background: var(--card2); color: var(--muted); cursor: pointer; font-size: 13px; }
-  .btn:hover { color: var(--text); border-color: var(--accent); }
-  .gaugebox { text-align: center; }
-  .gauge-wrap { position: relative; width: 100%; max-width: 360px; margin: 4px auto 14px; }
-  .gauge-wrap svg { display: block; width: 100%; }
-  .gauge-read { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; pointer-events: none; }
-  .scorenum { font-size: 46px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-  .scorenum small { font-size: 15px; font-weight: 600; color: var(--muted); }
-  .verdict { font-size: 19px; font-weight: 800; letter-spacing: 0.04em; margin: 4px 0 14px; }
-  .readout { padding: 9px 10px; background: var(--card2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 14px; min-height: 38px; display: flex; align-items: center; }
+  .field input.req { border-color: var(--bad); background: rgba(239,68,68,0.07); }
+  .btns { display: flex; gap: 8px; margin-top: 8px; }
+  .btn { flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--card2); color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 600; }
+  .btn:active { background: var(--line); }
+  /* Affordability hero */
+  .afford { background: linear-gradient(160deg, #20242e, #191c24); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px; margin-bottom: 13px; }
+  .afford .lab { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .afford > input { width: 100%; padding: 13px 12px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; color: var(--text); font-size: 18px; font-weight: 700; }
+  .afford > input:focus { outline: none; border-color: var(--accent); }
+  .levels { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin: 11px 0 4px; }
+  .level { padding: 10px 6px; border-radius: 11px; border: 1px solid var(--line); background: var(--card);
+    cursor: pointer; text-align: center; user-select: none; }
+  .level .t { font-size: 13px; font-weight: 700; color: var(--text); }
+  .level .s { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .level.on { border-color: var(--accent); background: rgba(244,129,32,0.14); }
+  .level.on .t { color: var(--accent); }
+  .recbox { margin-top: 11px; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 11px 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .recbox .rk { font-size: 12px; color: var(--muted); }
+  .recbox .rv { font-size: 22px; font-weight: 800; color: var(--accent); }
+  .recbox .rv small { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .readout { padding: 12px; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; color: var(--text); font-size: 13px; min-height: 47px; display: flex; align-items: center; }
   .readout.muted { color: var(--muted); }
-  .lever { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-bottom: 11px; }
-  .lever .leverrow { display: flex; gap: 8px; margin-top: 8px; }
-  .lever input, .lever select { flex: 1; width: 100%; padding: 9px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 15px; }
+  .lever { background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  .lever .leverrow { display: flex; gap: 8px; margin-top: 9px; }
+  .lever input, .lever select { flex: 1; width: 100%; padding: 12px 11px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: var(--text); font-size: 16px; }
   .lever input:focus, .lever select:focus { outline: none; border-color: var(--accent); }
   .lever .off { opacity: 0.4; }
-  .solvebox { background: rgba(244,129,32,0.08); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px; color: var(--text); }
+  .solvebox { background: rgba(244,129,32,0.08); border: 1px solid var(--accent); border-radius: 10px; padding: 11px 13px; margin-bottom: 12px; font-size: 13.5px; color: var(--text); line-height: 1.4; }
   .solvebox b { color: var(--accent); }
-  .exitbox { background: var(--card2); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; padding: 11px 13px; margin-bottom: 12px; text-align: left; }
-  .exit-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; }
-  .exit-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; margin: 5px 0; }
+  .exitbox { background: var(--card2); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 12px 13px; margin-bottom: 12px; text-align: left; }
+  .exit-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 9px; }
+  .exit-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; margin: 6px 0; }
   .exit-row span { color: var(--muted); }
   .exit-row b { color: var(--text); font-weight: 700; white-space: nowrap; }
   .exit-row small { color: var(--muted); font-weight: 500; font-size: 11px; }
-  .exit-note { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  .exit-note { font-size: 12px; color: var(--muted); margin-top: 9px; line-height: 1.45; }
+  .gaugebox { text-align: center; }
+  .gauge-wrap { position: relative; width: 100%; max-width: 340px; margin: 0 auto 12px; }
+  .gauge-wrap svg { display: block; width: 100%; }
   .v-great { color: var(--great); } .v-good { color: var(--good); } .v-fair { color: var(--fair); }
   .v-weak { color: var(--weak); } .v-bad { color: var(--bad); }
-  .bignums { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-  .bignum { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
-  .bignum .k { font-size: 11px; color: var(--muted); }
-  .bignum .v { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  .bignums { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 13px; }
+  .bignum { background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 11px 8px; text-align: center; }
+  .bignum .k { font-size: 10.5px; color: var(--muted); }
+  .bignum .v { font-size: 17px; font-weight: 800; margin-top: 3px; letter-spacing: -0.01em; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 14px; }
-  .chip { font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
-  .comp { margin-bottom: 10px; }
-  .comp .top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
-  .comp .w { color: var(--muted); font-size: 11px; }
-  .bar { height: 7px; background: var(--card2); border-radius: 99px; overflow: hidden; }
+  .chip { font-size: 12px; padding: 5px 11px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  /* Terse score rows */
+  .comp { margin-bottom: 9px; }
+  .comp .top { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; margin-bottom: 5px; }
+  .comp .top .lbl { color: var(--text); }
+  .comp .top .sc { font-weight: 800; font-size: 14px; }
+  .bar { height: 8px; background: var(--card2); border-radius: 99px; overflow: hidden; }
   .bar i { display: block; height: 100%; border-radius: 99px; }
-  .comp .d { font-size: 12px; color: var(--muted); margin-top: 4px; }
-  .flag { padding: 9px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 8px; border: 1px solid; }
+  .flag { padding: 11px 13px; border-radius: 10px; font-size: 13.5px; margin-bottom: 8px; border: 1px solid; line-height: 1.4; }
   .f-critical { border-color: var(--bad); color: #fca5a5; background: rgba(239,68,68,0.08); }
   .f-warn { border-color: var(--weak); color: #fdba74; background: rgba(249,115,22,0.07); }
   .f-info { border-color: #3b82f6; color: #93c5fd; background: rgba(59,130,246,0.07); }
-  .empty { color: var(--muted); text-align: center; padding: 40px 10px; }
-  details { margin-top: 16px; color: var(--muted); font-size: 13px; }
-  details summary { cursor: pointer; color: var(--text); font-weight: 600; }
+  .empty { color: var(--muted); text-align: center; padding: 30px 14px; font-size: 14px; line-height: 1.5; }
+  .empty.req { color: #fca5a5; border: 1px dashed var(--bad); border-radius: 12px; background: rgba(239,68,68,0.05); }
+  .empty.req b { color: #fecaca; }
+  details { margin-top: 14px; color: var(--muted); font-size: 13px; }
+  details summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 12px; }
   details li { margin: 6px 0; }
-  .foot { color: var(--muted); font-size: 12px; margin-top: 22px; text-align: center; }
-  .seg { display: flex; gap: 0; margin-bottom: 11px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .seg button { flex: 1; padding: 8px; background: var(--card2); color: var(--muted); border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .foot { color: var(--muted); font-size: 11.5px; margin-top: 20px; text-align: center; line-height: 1.45; }
+  .seg { display: flex; gap: 0; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 11px; overflow: hidden; }
+  .seg button { flex: 1; padding: 12px 8px; background: var(--card2); color: var(--muted); border: none; cursor: pointer; font-size: 14px; font-weight: 700; }
   .seg button.on { background: var(--accent); color: #14100b; }
   .hidden { display: none; }
 </style>
@@ -140,7 +159,7 @@ const PAGE_HTML = `<!doctype html>
 <body>
 <div class="wrap">
   <div class="brand"><img class="brand-logo" src="/icon.png" alt="Car Deal Gauge" width="46" height="46"><h1>Car Deal Gauge</h1></div>
-  <p class="sub">Lease and finance deal checker. Enter your ZIP and it pulls the right sales tax, DMV fees, and doc-fee cap for your state; market APR is auto-set for your credit tier, new/used, and term. Plug in the dealer worksheet and the gauge tells you if it is a good deal. Defaults to Irvine, CA.</p>
+  <p class="sub">Score any car deal 0-100. Enter your income and the dealer's numbers; tax, DMV fees, and market APR auto-fill from your ZIP and credit.</p>
 
   <div class="tabs">
     <div class="tab active" id="tab-lease">Lease</div>
@@ -204,41 +223,43 @@ const PAGE_HTML = `<!doctype html>
       </div>
 
       <div id="pane-finance" class="hidden">
-        <div class="seg">
-          <button id="f_new" class="on">New car</button>
-          <button id="f_used">Used car</button>
+        <div class="afford">
+          <div class="lab">Gross monthly income</div>
+          <input id="f_income" type="text" inputmode="numeric" placeholder="$10,000">
+          <div class="levels">
+            <div class="level" data-level="conservative"><div class="t">Conservative</div><div class="s">Safe</div></div>
+            <div class="level" data-level="comfortable"><div class="t">Comfortable</div><div class="s">Balanced</div></div>
+            <div class="level" data-level="aggressive"><div class="t">Aggressive</div><div class="s">Car guy</div></div>
+          </div>
+          <input type="hidden" id="f_level" value="">
+          <div class="row" style="margin:12px 0 0;align-items:end">
+            <div class="field" style="margin:0"><label>Target monthly payment $</label><input id="f_target" type="number" step="10" placeholder="auto"></div>
+            <div class="field" style="margin:0"><label>Then solve for</label><select id="f_solvefor">
+              <option value="price">Max car price</option>
+              <option value="down">Down payment</option>
+            </select></div>
+          </div>
+          <div class="hint" id="f_target_hint">Pick a level (or type a payment) and we solve what you can afford.</div>
         </div>
         <div class="row">
           <div class="field"><label>ZIP code</label><input id="f_zip" type="text" inputmode="numeric" maxlength="5" placeholder="92618"></div>
           <div class="field"><label>Detected location</label><div id="f_loc" class="readout">—</div></div>
         </div>
-        <div class="lever">
-          <label class="tlabel"><input id="f_target_on" type="checkbox"> Solve for a target monthly payment</label>
-          <div class="leverrow">
-            <input id="f_target" type="number" step="10" placeholder="550 ($/mo max)" class="off" disabled>
-            <select id="f_solvefor" class="off" disabled>
-              <option value="down">&rarr; find down payment</option>
-              <option value="price">&rarr; find max price</option>
-            </select>
-          </div>
-          <div class="hint" id="f_target_hint">Enter the car price + your max $/mo; we solve the down payment.</div>
+        <div class="seg">
+          <button id="f_new">New car</button>
+          <button id="f_used" class="on">Used car</button>
         </div>
         <div class="row">
-          <div class="field"><label id="f_msrp_label">MSRP (sticker) $</label><input id="f_msrp" type="number" step="100" placeholder="43000"></div>
-          <div class="field"><label id="f_price_label">Negotiated price $</label><input id="f_price" type="number" step="100" placeholder="40000"></div>
+          <div class="field"><label id="f_msrp_label">Fair market value (KBB/Edmunds) $</label><input id="f_msrp" type="number" step="100" placeholder="22000"></div>
+          <div class="field"><label id="f_price_label">Negotiated price $</label><input id="f_price" type="number" step="100" placeholder="20000"></div>
         </div>
         <div class="row">
-          <div class="field"><label>Rebates / incentives $</label><input id="f_rebates" type="number" step="100" value="0"><div class="hint">Taxed before rebates in most states.</div></div>
-          <div class="field"><label>Trade-in equity $</label><input id="f_trade" type="number" step="100" value="0"><div class="hint">Negative if you owe more than it is worth.</div></div>
-        </div>
-        <div class="row">
-          <div class="field"><label id="f_down_label">Down payment $</label><input id="f_down" type="number" step="100" value="0"></div>
-          <div class="field"><label>APR %</label><input id="f_apr" type="number" step="0.05" placeholder="6.5"></div>
-        </div>
-        <div class="row">
+          <div class="field"><label>APR %</label><input id="f_apr" type="number" step="0.05" placeholder="required"><div class="hint" id="f_apr_hint">Required — use the lender's real rate.</div></div>
           <div class="field"><label>Term (months)</label><select id="f_term">
             <option>36</option><option>48</option><option selected>60</option><option>72</option><option>84</option>
           </select></div>
+        </div>
+        <div class="row">
           <div class="field"><label>Your credit tier</label><select id="f_tier">
             <option value="superprime">Super prime (781+)</option>
             <option value="prime" selected>Prime (661-780)</option>
@@ -246,18 +267,23 @@ const PAGE_HTML = `<!doctype html>
             <option value="subprime">Subprime (501-600)</option>
             <option value="deepsub">Deep subprime (&lt;501)</option>
           </select></div>
+          <div class="field"><label>Benchmark APR % (bank avg)</label><input id="f_bench" type="number" step="0.1"><div class="hint" id="f_bench_hint">Auto-filled for your tier/term.</div></div>
         </div>
         <div class="row">
-          <div class="field"><label>Benchmark APR % (market avg)</label><input id="f_bench" type="number" step="0.1"><div class="hint" id="f_bench_hint">Auto-filled for your tier, new/used, and term.</div></div>
-          <div class="field"><label>Dealer add-ons $</label><input id="f_addons" type="number" step="50" value="0"><div class="hint">Etch, nitrogen, "protection". Should be $0.</div></div>
+          <div class="field"><label id="f_down_label">Down payment $</label><input id="f_down" type="number" step="100" value="0"></div>
+          <div class="field"><label>Trade-in equity $</label><input id="f_trade" type="number" step="100" value="0"><div class="hint">Negative if you owe more than it's worth.</div></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Rebates / incentives $</label><input id="f_rebates" type="number" step="100" value="0"><div class="hint">Taxed before rebates in most states.</div></div>
+          <div class="field"><label>Dealer add-ons $</label><input id="f_addons" type="number" step="50" value="0"><div class="hint">Etch, nitrogen, "protection". $0.</div></div>
         </div>
         <div class="row">
           <div class="field"><label>Doc fee $</label><input id="f_doc" type="number" step="5" value="85"><div class="hint" id="f_doc_hint">CA legal max is $85.</div></div>
-          <div class="field"><label class="tlabel"><input id="f_tax_on" type="checkbox" checked> Sales tax %</label><input id="f_tax" type="number" step="0.05" value="7.75"><div class="hint">Uncheck to exclude tax.</div></div>
+          <div class="field"><label class="tlabel"><input id="f_tax_on" type="checkbox" checked> Sales tax %</label><input id="f_tax" type="number" step="0.05" value="7.75"><div class="hint">Uncheck to exclude.</div></div>
         </div>
         <div class="row">
           <div class="field"><label class="tlabel"><input id="f_reg_on" type="checkbox" checked> Registration &amp; DMV fees $</label><input id="f_reg" type="number" step="5" value="0"><div class="hint">Title, plates, VLF.</div></div>
-          <div class="field"><label>Sell / pay off after (months)</label><input id="f_exit" type="number" step="6" placeholder="e.g. 24"><div class="hint">Optional: interest by then vs the full loan.</div></div>
+          <div class="field"><label>Sell / pay off after (mo)</label><input id="f_exit" type="number" step="6" placeholder="e.g. 24"><div class="hint">Interest by then vs full loan.</div></div>
         </div>
         <div class="check"><input id="f_zipauto" type="checkbox" checked><label for="f_zipauto">Auto-fill tax + DMV fees from ZIP</label></div>
         <div class="check"><input id="f_bench_auto" type="checkbox" checked><label for="f_bench_auto">Auto-fill benchmark APR from credit tier</label></div>
@@ -303,7 +329,7 @@ const PAGE_HTML = `<!doctype html>
 </div>
 
 <script type="module">
-import { CONFIG, estimateRegistration, resolveZip, marketApr, bestBankApr, solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown, financeEarlyExit, scoreLease, scoreFinance } from '/calc.mjs';
+import { CONFIG, estimateRegistration, resolveZip, marketApr, bestBankApr, solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown, financeEarlyExit, affordabilityPayment, AFFORDABILITY, scoreLease, scoreFinance } from '/calc.mjs';
 
 var $ = function (id) { return document.getElementById(id); };
 var mode = 'lease';
@@ -319,6 +345,22 @@ function money2(x) {
 }
 function num(id) { var v = parseFloat($(id).value); return isFinite(v) ? v : 0; }
 function numOr(id, dflt) { var v = parseFloat($(id).value); return isFinite(v) ? v : dflt; }
+function parseMoney(id) { var v = ($(id).value || '').replace(/[^0-9.]/g, ''); var n = parseFloat(v); return isFinite(n) ? n : 0; }
+
+// Income + appetite level -> fills the target monthly payment + highlights.
+function applyAffordability() {
+  var income = parseMoney('f_income');
+  var level = $('f_level').value;
+  var nodes = document.querySelectorAll('#pane-finance .level');
+  for (var i = 0; i < nodes.length; i++) {
+    nodes[i].classList.toggle('on', nodes[i].getAttribute('data-level') === level);
+  }
+  if (income > 0 && level) {
+    var p = affordabilityPayment(income, level);
+    if (p != null) $('f_target').value = p;
+  }
+  return { income: income, level: level };
+}
 
 // A toggleable line: returns its dollar value when checked, else 0, and dims
 // the input when off. Keeps the typed value so re-checking restores it.
@@ -399,10 +441,9 @@ function renderResult(res, bigs, chips, note, extra) {
   for (var k = 0; k < res.components.length; k++) {
     var comp = res.components[k];
     var col = comp.score >= 85 ? 'var(--great)' : comp.score >= 70 ? 'var(--good)' : comp.score >= 55 ? 'var(--fair)' : comp.score >= 40 ? 'var(--weak)' : 'var(--bad)';
-    html += '<div class="comp"><div class="top"><span>' + comp.label +
-      ' <span class="w">(' + comp.weight + '%)</span></span><span style="color:' + col + ';font-weight:700">' + Math.round(comp.score) + '</span></div>' +
-      '<div class="bar"><i style="width:' + Math.max(2, comp.score) + '%;background:' + col + '"></i></div>' +
-      '<div class="d">' + comp.detail + '</div></div>';
+    html += '<div class="comp"><div class="top"><span class="lbl">' + comp.label +
+      '</span><span class="sc" style="color:' + col + '">' + Math.round(comp.score) + '</span></div>' +
+      '<div class="bar"><i style="width:' + Math.max(2, comp.score) + '%;background:' + col + '"></i></div></div>';
   }
   html += '</div>';
   $('results').innerHTML = html;
@@ -427,13 +468,9 @@ function resolveAndLabel(prefix) {
   return loc;
 }
 
-// Wire the lever UI: enable the target + solve-for controls, and make whichever
-// field is being solved (price OR down payment) read-only, the other editable.
-function setTargetUI(prefix, on, solveFor) {
-  var t = $(prefix + '_target');
-  t.disabled = !on; t.classList.toggle('off', !on);
-  var sel = $(prefix + '_solvefor');
-  sel.disabled = !on; sel.classList.toggle('off', !on);
+// Make whichever field is being solved (price OR down) read-only + dimmed, the
+// other editable, and relabel both.
+function applySolveFields(prefix, on, solveFor) {
   var solvingPrice = on && solveFor === 'price';
   var solvingDown = on && solveFor === 'down';
   var p = $(prefix + '_price');
@@ -448,6 +485,15 @@ function setTargetUI(prefix, on, solveFor) {
   if (dl) dl.textContent = solvingDown
     ? 'Down payment (solved) $'
     : (prefix === 'l' ? 'Down payment (cap reduction) $' : 'Down payment $');
+}
+
+// Lease lever: the checkbox enables the target + solve-for controls.
+function setTargetUI(prefix, on, solveFor) {
+  var t = $(prefix + '_target');
+  t.disabled = !on; t.classList.toggle('off', !on);
+  var sel = $(prefix + '_solvefor');
+  sel.disabled = !on; sel.classList.toggle('off', !on);
+  applySolveFields(prefix, on, solveFor);
   var hint = $(prefix + '_target_hint');
   if (hint) hint.textContent = !on
     ? 'Lock a monthly payment and we solve the rest.'
@@ -537,6 +583,7 @@ function recalcLease() {
 }
 
 function recalcFinance() {
+  var aff = applyAffordability();
   var loc = resolveAndLabel('f');
   var zipauto = $('f_zipauto').checked;
   if (loc && zipauto) $('f_tax').value = loc.taxRate;
@@ -554,11 +601,32 @@ function recalcFinance() {
     if (b != null) $('f_bench').value = b;
   }
   $('f_bench_hint').textContent = 'Mainstream-bank avg (' + CONFIG.benchmarksLenders + ') for your tier/term.' +
-    (bestBank != null ? ' Top banks: ~' + bestBank.toFixed(1) + '%.' : '') + ' Override with a real quote.';
+    (bestBank != null ? ' Top banks: ~' + bestBank.toFixed(1) + '%.' : '') + ' Override with a quote.';
 
-  var targetOn = $('f_target_on').checked;
   var solveFor = $('f_solvefor').value;
-  setTargetUI('f', targetOn, solveFor);
+  var targetOn = $('f_target').value.trim() !== '' && num('f_target') > 0;
+  applySolveFields('f', targetOn, solveFor);
+  $('f_target_hint').textContent = targetOn
+    ? (solveFor === 'price' ? 'We solve the highest car price for this payment.' : 'Enter the car price; we solve the down payment for this payment.')
+    : 'Pick a level (or type a payment) and we solve what you can afford.';
+
+  // APR is required — without it the math assumes 0% and shows a fake great deal.
+  var aprRaw = $('f_apr').value.trim();
+  var aprEntered = aprRaw !== '' && isFinite(parseFloat(aprRaw));
+  $('f_apr').classList.toggle('req', !aprEntered);
+  if (!aprEntered) {
+    // Don't show any solved figure without an APR.
+    if (targetOn && solveFor === 'price') $('f_price').value = '';
+    if (targetOn && solveFor === 'down') $('f_down').value = '';
+    $('results').innerHTML = '<div class="empty req"><b>Enter the APR</b> to see your numbers.<br>Without it the math assumes 0% and shows a fake great deal — put in the lender\\'s real rate.</div>';
+    return;
+  }
+
+  var affNote = '';
+  if (aff.income > 0 && aff.level && num('f_target') > 0) {
+    var pct = Math.round((num('f_target') / aff.income) * 100);
+    affNote = '<b>' + AFFORDABILITY[aff.level].label + '</b> budget · ' + money(num('f_target')) + '/mo (' + pct + '% of ' + money(aff.income) + ' income). ';
+  }
   var note = null;
   // Auto-estimate registration from the price whenever price is a known input.
   if (zipauto && (!targetOn || solveFor === 'down') && num('f_price') > 0) {
@@ -573,10 +641,10 @@ function recalcFinance() {
     }, num('f_target'));
     if (solved && solved > 0) {
       $('f_price').value = solved;
-      note = 'To stay at ' + money(num('f_target')) + '/mo, pay at most <b>' + money(solved) + '</b> for the car (before tax + fees).';
+      note = affNote + 'At ' + money(num('f_target')) + '/mo you can afford about <b>' + money(solved) + '</b> (before tax + fees).';
     } else {
       $('f_price').value = '';
-      note = 'That payment is not reachable with these terms. Raise the down payment, extend the term, or lift the target.';
+      note = 'That payment is not reachable with these terms. Raise the down, extend the term, or lift the target.';
     }
   } else if (targetOn && solveFor === 'down') {
     var dn = solveFinanceDown({
@@ -585,19 +653,20 @@ function recalcFinance() {
       apr: num('f_apr'), term: num('f_term'), taxTradeCredit: tradeCredit,
     }, num('f_target'));
     if (dn == null) {
-      note = 'Enter the car price, APR, and term and we solve the down payment.';
+      note = affNote + 'Enter the car price and we solve the down payment to hit this payment.';
     } else if (dn <= 0) {
       $('f_down').value = 0;
-      note = 'At ' + money(num('f_target')) + '/mo you need <b>$0 down</b> — even nothing down lands under your target.';
+      note = affNote + 'At ' + money(num('f_target')) + '/mo you need <b>$0 down</b> — even nothing down lands under it.';
     } else {
       $('f_down').value = Math.round(dn);
-      note = 'To hit ' + money(num('f_target')) + '/mo on this car, put about <b>' + money(dn) + '</b> down.';
+      note = affNote + 'To hit ' + money(num('f_target')) + '/mo on this car, put about <b>' + money(dn) + '</b> down.';
     }
   }
 
+  var priceVal = num('f_price');
   var inputs = {
-    isUsed: finUsed, msrp: num('f_msrp'), price: num('f_price'), rebates: num('f_rebates'),
-    tradeEquity: num('f_trade'), down: num('f_down'), apr: num('f_apr'),
+    isUsed: finUsed, msrp: num('f_msrp') > 0 ? num('f_msrp') : priceVal, price: priceVal,
+    rebates: num('f_rebates'), tradeEquity: num('f_trade'), down: num('f_down'), apr: num('f_apr'),
     term: num('f_term'), benchmarkApr: num('f_bench'), docFee: num('f_doc'),
     govFees: govFees, addons: num('f_addons'), taxPct: taxPct,
     docFeeCap: docCap, stateLabel: stateLabel, taxTradeCredit: tradeCredit,
@@ -605,7 +674,7 @@ function recalcFinance() {
   var res = scoreFinance(inputs);
   if (!res) {
     $('results').innerHTML = '<div class="empty">' + (note ? '<div class="solvebox" style="text-align:left">' + note + '</div>' : '') +
-      'Enter ' + (finUsed ? 'market value' : 'MSRP') + ', ' + (targetOn ? 'target payment' : 'price') + ', APR, and term.</div>';
+      'Enter the car&rsquo;s price' + (finUsed ? ' and market value' : '') + ' to see the score.</div>';
     return;
   }
   var q = res.quote;
@@ -625,11 +694,10 @@ function recalcFinance() {
     }
   }
   var finChips = [
-    'Out the door: ' + money(q.amountFinanced + inputs.down + inputs.rebates + inputs.tradeEquity),
+    'Out the door ' + money(q.amountFinanced + inputs.down + inputs.rebates + inputs.tradeEquity),
     'LTV ' + q.ltv.toFixed(0) + '%',
-    'APR ' + (q.aprDelta >= 0 ? '+' : '') + q.aprDelta.toFixed(1) + ' vs bank avg',
   ];
-  if (bestBank != null) finChips.push('Top-bank target: ' + bestBank.toFixed(1) + '%');
+  if (bestBank != null) finChips.push('Top-bank rate ' + bestBank.toFixed(1) + '%');
   renderResult(res, [
     ['Monthly payment', money2(q.monthly)],
     ['Amount financed', money(q.amountFinanced)],
@@ -644,8 +712,8 @@ function recalc() {
 
 // ------------------------------------------------------------- wiring ----
 var LEASE_IDS = ['l_zip','l_target','l_solvefor','l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_tax'];
-var FIN_IDS = ['f_zip','f_target','f_solvefor','f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_reg','f_tax','f_exit'];
-var CHECK_IDS = ['l_zipauto','f_zipauto','f_bench_auto','l_tax_on','l_reg_on','f_tax_on','f_reg_on','l_target_on','f_target_on'];
+var FIN_IDS = ['f_income','f_level','f_target','f_solvefor','f_zip','f_msrp','f_price','f_apr','f_term','f_tier','f_bench','f_down','f_trade','f_rebates','f_addons','f_doc','f_reg','f_tax','f_exit'];
+var CHECK_IDS = ['l_zipauto','f_zipauto','f_bench_auto','l_tax_on','l_reg_on','f_tax_on','f_reg_on','l_target_on'];
 
 function save() {
   var data = { mode: mode, finUsed: finUsed, v: {} };
@@ -668,9 +736,13 @@ function load() {
       for (var t = 0; t < CHECK_IDS.length; t++) {
         if (data[CHECK_IDS[t]] !== undefined) $(CHECK_IDS[t]).checked = data[CHECK_IDS[t]];
       }
-      if (data.finUsed) setUsed(true);
-      if (data.mode === 'finance') setMode('finance');
+      if (data.finUsed === false) setUsed(false); else setUsed(true);
+      if (data.mode === 'lease') setMode('lease'); else setMode('finance');
     } catch (e) {}
+  } else {
+    // First visit: default to Finance + Used car.
+    setUsed(true);
+    setMode('finance');
   }
   // Default ZIP to Irvine so tax + DMV fees are pre-dialed.
   if (!$('l_zip').value) $('l_zip').value = '92618';
@@ -701,10 +773,21 @@ $('tab-finance').addEventListener('click', function () { setMode('finance'); });
 $('f_new').addEventListener('click', function () { setUsed(false); recalc(); });
 $('f_used').addEventListener('click', function () { setUsed(true); recalc(); });
 
+// A manually typed payment overrides the affordability level (clear before recalc).
+$('f_target').addEventListener('input', function () { $('f_level').value = ''; });
+
 var all = LEASE_IDS.concat(FIN_IDS);
 for (var i = 0; i < all.length; i++) {
   $(all[i]).addEventListener('input', recalc);
   $(all[i]).addEventListener('change', recalc);
+}
+// Affordability level buttons.
+var levelEls = document.querySelectorAll('#pane-finance .level');
+for (var li = 0; li < levelEls.length; li++) {
+  levelEls[li].addEventListener('click', function () {
+    $('f_level').value = this.getAttribute('data-level');
+    recalc();
+  });
 }
 // Manual edits stop the ZIP/benchmark auto-fill from overwriting.
 $('l_tax').addEventListener('input', function () { $('l_zipauto').checked = false; });
@@ -736,22 +819,24 @@ $('l_reset').addEventListener('click', function () {
   recalc();
 });
 $('f_example').addEventListener('click', function () {
-  setUsed(false);
+  setUsed(true);
   $('f_zip').value = '92618'; $('l_zip').value = '92618';
-  $('f_msrp').value = 43000; $('f_price').value = 39900; $('f_rebates').value = 1000;
-  $('f_trade').value = 0; $('f_down').value = 4000; $('f_apr').value = 5.9;
+  $('f_income').value = ''; $('f_level').value = ''; $('f_target').value = '';
+  $('f_msrp').value = 22000; $('f_price').value = 20000; $('f_rebates').value = 0;
+  $('f_trade').value = 0; $('f_down').value = 3000; $('f_apr').value = 8.4;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_addons').value = 0;
   $('f_doc').value = 85; $('f_exit').value = 24;
-  $('f_target_on').checked = false; $('f_solvefor').value = 'down'; $('f_zipauto').checked = true;
+  $('f_solvefor').value = 'price'; $('f_zipauto').checked = true;
   $('f_bench_auto').checked = true; $('f_tax_on').checked = true; $('f_reg_on').checked = true;
   recalc();
 });
 $('f_reset').addEventListener('click', function () {
   for (var i = 0; i < FIN_IDS.length; i++) $(FIN_IDS[i]).value = '';
+  setUsed(true);
   $('f_zip').value = '92618'; $('f_rebates').value = 0; $('f_trade').value = 0;
   $('f_down').value = 0; $('f_addons').value = 0; $('f_doc').value = 85; $('f_tax').value = 7.75;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_reg').value = 0;
-  $('f_target_on').checked = false; $('f_solvefor').value = 'down'; $('f_zipauto').checked = true;
+  $('f_solvefor').value = 'price'; $('f_zipauto').checked = true;
   $('f_bench_auto').checked = true; $('f_tax_on').checked = true; $('f_reg_on').checked = true;
   recalc();
 });

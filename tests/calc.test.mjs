@@ -5,7 +5,7 @@ import {
   leaseQuote, scoreLease, financeQuote, scoreFinance,
   marketApr, bestBankApr, resolveZip, docFeeCapForState,
   solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown,
-  amortizeThrough, financeEarlyExit,
+  amortizeThrough, financeEarlyExit, affordabilityPayment, AFFORDABILITY,
 } from '../calc.mjs';
 
 const close = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, (msg || '') + ' got ' + a + ' want ' + b + ' ±' + tol);
@@ -299,6 +299,16 @@ test('early exit: interest share exceeds time share on a long loan', () => {
   close(end.balance, 0, 1, 'no balance at full term');
   close(end.interestShare, 100, 0.5, 'all interest paid at full term');
   assert.equal(financeEarlyExit(i, 0), null);
+});
+
+test('affordability payment scales with income and appetite', () => {
+  assert.equal(affordabilityPayment(10000, 'conservative'), 800);
+  assert.equal(affordabilityPayment(10000, 'comfortable'), 1200);
+  assert.equal(affordabilityPayment(10000, 'aggressive'), 1800);
+  assert.ok(affordabilityPayment(10000, 'aggressive') > affordabilityPayment(10000, 'conservative'));
+  assert.equal(affordabilityPayment(0, 'comfortable'), null);
+  assert.equal(affordabilityPayment(10000, 'bogus'), null);
+  assert.ok(AFFORDABILITY.conservative.pct < AFFORDABILITY.aggressive.pct);
 });
 
 test('config sanity', () => {
