@@ -481,6 +481,44 @@ export function solveFinanceDown(i, targetPayment) {
   return Math.round(down);
 }
 
+// Standard amortization through `k` payments: how much of an `amountFinanced`
+// loan is interest vs principal, and the remaining payoff balance. Because early
+// payments are mostly interest, interestPaid/k is front-loaded vs the full term.
+export function amortizeThrough(amountFinanced, apr, term, k) {
+  if (!(amountFinanced > 0) || !(term > 0) || !(k > 0)) return null;
+  k = Math.min(Math.round(k), term);
+  const r = apr / 100 / 12;
+  const monthly = (r === 0) ? amountFinanced / term
+    : amountFinanced * r / (1 - Math.pow(1 + r, -term));
+  let balance;
+  if (r === 0) balance = amountFinanced - monthly * k;
+  else balance = amountFinanced * Math.pow(1 + r, k) - monthly * (Math.pow(1 + r, k) - 1) / r;
+  balance = Math.max(0, balance);
+  const principalPaid = amountFinanced - balance;
+  const paid = monthly * k;
+  const interestPaid = Math.max(0, paid - principalPaid);
+  return { monthly, k, balance, principalPaid, interestPaid, paid };
+}
+
+// "What if I sell / pay off the car early?" Interest paid by month `exitMonth`
+// vs the loan's lifetime interest, plus the payoff balance you'd owe to clear it
+// and the total cash you'd have sunk in by then (down + payments + payoff).
+export function financeEarlyExit(i, exitMonth) {
+  const q = financeQuote(i);
+  if (!q || !(exitMonth > 0)) return null;
+  const a = amortizeThrough(q.amountFinanced, i.apr, i.term, exitMonth);
+  if (!a) return null;
+  const interestShare = q.totalInterest > 0 ? (a.interestPaid / q.totalInterest) * 100 : 0;
+  const termShare = (a.k / i.term) * 100;
+  const cashToClear = (i.down || 0) + a.paid + a.balance;
+  return {
+    exitMonth: a.k, term: i.term, monthly: a.monthly,
+    interestPaid: a.interestPaid, totalInterest: q.totalInterest,
+    interestShare, termShare, balance: a.balance,
+    principalPaid: a.principalPaid, paymentsMade: a.paid, cashToClear,
+  };
+}
+
 const FIN_CURVES = {
   aprDelta:    [[-2, 100], [-0.5, 90], [0, 80], [1, 60], [2, 45], [3, 30], [5, 10]],
   discountNew: [[-3, 5], [0, 35], [2, 55], [4, 70], [6, 85], [9, 100]],

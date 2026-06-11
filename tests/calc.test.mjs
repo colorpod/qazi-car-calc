@@ -5,6 +5,7 @@ import {
   leaseQuote, scoreLease, financeQuote, scoreFinance,
   marketApr, resolveZip, docFeeCapForState,
   solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown,
+  amortizeThrough, financeEarlyExit,
 } from '../calc.mjs';
 
 const close = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, (msg || '') + ' got ' + a + ' want ' + b + ' ±' + tol);
@@ -252,6 +253,40 @@ test('CA rebate tax rule: rebate does not reduce sales tax', () => {
   const withRebate = financeQuote({ ...base, rebates: 5000 });
   close(noRebate.salesTax, withRebate.salesTax, 0.001, 'tax unchanged by rebate');
   close(noRebate.amountFinanced - withRebate.amountFinanced, 5000, 0.001, 'rebate reduces principal');
+});
+
+test('amortization: interest is front-loaded, balance closes at term', () => {
+  const af = 30000, apr = 6, term = 60;
+  const full = amortizeThrough(af, apr, term, term);
+  close(full.balance, 0, 0.5, 'balance ~0 at end of term');
+  // total interest over the full term
+  const totalInt = full.interestPaid;
+  const half = amortizeThrough(af, apr, term, 30); // halfway in time
+  assert.ok(half.interestPaid / totalInt > 0.5, 'over half the interest paid in the first half');
+  assert.ok(half.balance > 0 && half.balance < af, 'balance between 0 and principal');
+  // zero-APR: interest is always 0, principal linear
+  const z = amortizeThrough(12000, 0, 24, 12);
+  close(z.interestPaid, 0, 0.01, 'no interest at 0 APR');
+  close(z.balance, 6000, 0.01, 'half paid down at 0 APR');
+  assert.equal(amortizeThrough(0, 6, 60, 12), null);
+  assert.equal(amortizeThrough(30000, 6, 60, 0), null);
+});
+
+test('early exit: interest share exceeds time share on a long loan', () => {
+  const i = {
+    isUsed: false, msrp: 45000, price: 42000, rebates: 0, tradeEquity: 0, down: 4000,
+    apr: 7.5, term: 72, benchmarkApr: 7.2, docFee: 85, govFees: 595, addons: 0, taxPct: 7.75,
+  };
+  const ex = financeEarlyExit(i, 24);
+  assert.equal(ex.exitMonth, 24);
+  assert.equal(ex.term, 72);
+  assert.ok(ex.interestShare > ex.termShare, 'interest front-loaded: ' + ex.interestShare.toFixed(0) + '% interest in ' + ex.termShare.toFixed(0) + '% of term');
+  assert.ok(ex.balance > 0, 'still owe a payoff balance');
+  // selling at the very end leaves ~no balance and ~all the interest paid
+  const end = financeEarlyExit(i, 72);
+  close(end.balance, 0, 1, 'no balance at full term');
+  close(end.interestShare, 100, 0.5, 'all interest paid at full term');
+  assert.equal(financeEarlyExit(i, 0), null);
 });
 
 test('config sanity', () => {

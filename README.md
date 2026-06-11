@@ -74,6 +74,20 @@ what to solve for:
 The deal math is linear in both price and down payment, so each inverse is exact
 (the resulting monthly lands on your target to the dollar). Works on both tabs.
 
+## Sell / pay off early (finance)
+
+Enter a month in **"Sell / pay off after (months)"** and the finance results show
+what happens if you don't go the distance:
+
+- **Interest paid by then** and its **share of the loan's lifetime interest** vs
+  the share of the *term* elapsed. On a 72-month loan, selling at month 24 can
+  mean you've already paid ~54% of the total interest in just 33% of the term.
+- **Payoff balance** — what you'd still owe to clear the loan and sell the car.
+
+This exposes amortization front-loading: early payments are mostly interest, so
+selling early means you barely dented the principal. Uses a standard
+amortization schedule (`amortizeThrough` / `financeEarlyExit` in calc.mjs).
+
 ## Lease scoring (0-100)
 
 | Component | Weight | Rule |

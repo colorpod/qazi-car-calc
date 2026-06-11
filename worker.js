@@ -88,6 +88,13 @@ const PAGE_HTML = `<!doctype html>
   .lever .off { opacity: 0.4; }
   .solvebox { background: rgba(244,129,32,0.08); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px; color: var(--text); }
   .solvebox b { color: var(--accent); }
+  .exitbox { background: var(--card2); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; padding: 11px 13px; margin-bottom: 12px; text-align: left; }
+  .exit-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; }
+  .exit-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; margin: 5px 0; }
+  .exit-row span { color: var(--muted); }
+  .exit-row b { color: var(--text); font-weight: 700; white-space: nowrap; }
+  .exit-row small { color: var(--muted); font-weight: 500; font-size: 11px; }
+  .exit-note { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
   .v-great { color: var(--great); } .v-good { color: var(--good); } .v-fair { color: var(--fair); }
   .v-weak { color: var(--weak); } .v-bad { color: var(--bad); }
   .bignums { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
@@ -237,7 +244,7 @@ const PAGE_HTML = `<!doctype html>
         </div>
         <div class="row">
           <div class="field"><label class="tlabel"><input id="f_reg_on" type="checkbox" checked> Registration &amp; DMV fees $</label><input id="f_reg" type="number" step="5" value="0"><div class="hint">Title, plates, VLF.</div></div>
-          <div class="field"></div>
+          <div class="field"><label>Sell / pay off after (months)</label><input id="f_exit" type="number" step="6" placeholder="e.g. 24"><div class="hint">Optional: interest by then vs the full loan.</div></div>
         </div>
         <div class="check"><input id="f_zipauto" type="checkbox" checked><label for="f_zipauto">Auto-fill tax + DMV fees from ZIP</label></div>
         <div class="check"><input id="f_bench_auto" type="checkbox" checked><label for="f_bench_auto">Auto-fill benchmark APR from credit tier</label></div>
@@ -283,7 +290,7 @@ const PAGE_HTML = `<!doctype html>
 </div>
 
 <script type="module">
-import { CONFIG, estimateRegistration, resolveZip, marketApr, solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown, scoreLease, scoreFinance } from '/calc.mjs';
+import { CONFIG, estimateRegistration, resolveZip, marketApr, solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown, financeEarlyExit, scoreLease, scoreFinance } from '/calc.mjs';
 
 var $ = function (id) { return document.getElementById(id); };
 var mode = 'lease';
@@ -357,7 +364,7 @@ function gaugeSvg(score, verdict) {
   return s;
 }
 
-function renderResult(res, bigs, chips, note) {
+function renderResult(res, bigs, chips, note, extra) {
   var html = '';
   html += '<div class="gauge-wrap">' + gaugeSvg(res.score, res.verdict) + '</div>';
   if (note) html += '<div class="solvebox">' + note + '</div>';
@@ -369,6 +376,7 @@ function renderResult(res, bigs, chips, note) {
   html += '<div class="chips">';
   for (var c = 0; c < chips.length; c++) html += '<span class="chip">' + chips[c] + '</span>';
   html += '</div>';
+  if (extra) html += extra;
   var order = { critical: 0, warn: 1, info: 2 };
   var flags = res.flags.slice().sort(function (a, b) { return order[a.level] - order[b.level]; });
   for (var f = 0; f < flags.length; f++) {
@@ -586,6 +594,21 @@ function recalcFinance() {
     return;
   }
   var q = res.quote;
+  // Optional "what if I sell / pay off early?" panel.
+  var exitHtml = '';
+  var exitMo = num('f_exit');
+  if (exitMo >= 1) {
+    var ex = financeEarlyExit(inputs, exitMo);
+    if (ex && ex.exitMonth < ex.term) {
+      exitHtml = '<div class="exitbox">' +
+        '<div class="exit-h">If you sell or pay off at month ' + ex.exitMonth + ' of ' + ex.term + '</div>' +
+        '<div class="exit-row"><span>Interest paid by then</span><b>' + money(ex.interestPaid) + '</b></div>' +
+        '<div class="exit-row"><span>Share of the loan&rsquo;s total interest</span><b>' + Math.round(ex.interestShare) + '% <small>(in ' + Math.round(ex.termShare) + '% of the term)</small></b></div>' +
+        '<div class="exit-row"><span>Payoff balance to clear it</span><b>' + money(ex.balance) + '</b></div>' +
+        '<div class="exit-note">Loan interest is front-loaded: you pay ' + Math.round(ex.interestShare) + '% of the lifetime interest in the first ' + Math.round(ex.termShare) + '% of the term. Selling early means you barely dented the principal.</div>' +
+        '</div>';
+    }
+  }
   renderResult(res, [
     ['Monthly payment', money2(q.monthly)],
     ['Amount financed', money(q.amountFinanced)],
@@ -594,7 +617,7 @@ function recalcFinance() {
     'Out the door: ' + money(q.amountFinanced + inputs.down + inputs.rebates + inputs.tradeEquity),
     'LTV ' + q.ltv.toFixed(0) + '%',
     'APR ' + (q.aprDelta >= 0 ? '+' : '') + q.aprDelta.toFixed(1) + ' vs market',
-  ], note);
+  ], note, exitHtml);
 }
 
 function recalc() {
@@ -604,7 +627,7 @@ function recalc() {
 
 // ------------------------------------------------------------- wiring ----
 var LEASE_IDS = ['l_zip','l_target','l_solvefor','l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_tax'];
-var FIN_IDS = ['f_zip','f_target','f_solvefor','f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_reg','f_tax'];
+var FIN_IDS = ['f_zip','f_target','f_solvefor','f_msrp','f_price','f_rebates','f_trade','f_down','f_apr','f_term','f_tier','f_bench','f_addons','f_doc','f_reg','f_tax','f_exit'];
 var CHECK_IDS = ['l_zipauto','f_zipauto','f_bench_auto','l_tax_on','l_reg_on','f_tax_on','f_reg_on','l_target_on','f_target_on'];
 
 function save() {
@@ -701,7 +724,7 @@ $('f_example').addEventListener('click', function () {
   $('f_msrp').value = 43000; $('f_price').value = 39900; $('f_rebates').value = 1000;
   $('f_trade').value = 0; $('f_down').value = 4000; $('f_apr').value = 5.9;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_addons').value = 0;
-  $('f_doc').value = 85;
+  $('f_doc').value = 85; $('f_exit').value = 24;
   $('f_target_on').checked = false; $('f_solvefor').value = 'down'; $('f_zipauto').checked = true;
   $('f_bench_auto').checked = true; $('f_tax_on').checked = true; $('f_reg_on').checked = true;
   recalc();
