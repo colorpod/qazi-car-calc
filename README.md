@@ -54,11 +54,27 @@ the lease payment is labeled "(no tax)".
 
 ## Market APR (auto-filled)
 
-The benchmark APR is auto-set for your **credit tier**, **new vs used**, AND
-**loan term** (72 months prices higher than 36), sourced from Experian's
-quarterly average and stamped with the "as of" date. Loan *amount* (a $20k vs
-$100k car) barely moves APR at the same tier, so it is not a dimension — credit,
-new/used, and term are the real drivers. Override with a real quote any time.
+The benchmark is what you could realistically get from a **mainstream bank**
+(Ally, Wells Fargo, Chase, Bank of America, Capital One) — not a blended
+industry average that includes captive lenders, buy-here-pay-here, or credit
+unions. It auto-sets for your **credit tier**, **new vs used**, AND **loan term**
+(72 months prices higher than 36). Loan *amount* ($20k vs $100k) barely moves
+APR at the same tier, so it is not a dimension.
+
+- **Benchmark = the average across those banks** — drives the score (at the
+  average you are "at market"; below is better).
+- **Top-bank target = the best rate the top-tier banks (Chase/BofA tier) offer**
+  for your credit — the barometer to aim for and negotiate toward. Shown in the
+  benchmark hint and as a results chip.
+
+Override the benchmark with a real quote any time.
+
+## Logo
+
+`assets/brand/qazi-repo-logo*` — a cream speedometer gauge on the suite's orange
+squircle, matching the Qazi Agent OS house style (run `node scripts/gen-logo.mjs`
+to regenerate from `qazi-repo-logo.svg`; needs the `sharp` devDependency). The
+worker serves it at `/icon.png` (favicon + apple-touch-icon + header mark).
 
 ## Solve for a target payment
 

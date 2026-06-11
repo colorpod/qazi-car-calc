@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   CONFIG, lerpCurve, estimateRegistration, verdictFor,
   leaseQuote, scoreLease, financeQuote, scoreFinance,
-  marketApr, resolveZip, docFeeCapForState,
+  marketApr, bestBankApr, resolveZip, docFeeCapForState,
   solveLeasePrice, solveFinancePrice, solveLeaseDown, solveFinanceDown,
   amortizeThrough, financeEarlyExit,
 } from '../calc.mjs';
@@ -44,6 +44,18 @@ test('market APR is term-aware and new/used aware', () => {
   assert.equal(marketApr(false, 'bogus', 60), null);
   // Price does NOT enter the model — same call, same result.
   assert.equal(marketApr(false, 'superprime', 72), marketApr(false, 'superprime', 72));
+});
+
+test('best-bank barometer is below the mainstream-bank average', () => {
+  for (const used of [false, true]) {
+    for (const tier of ['superprime', 'prime', 'nearprime', 'subprime', 'deepsub']) {
+      assert.ok(bestBankApr(used, tier, 60) < marketApr(used, tier, 60),
+        'top-bank should beat the average for ' + tier + (used ? ' used' : ' new'));
+    }
+  }
+  assert.equal(bestBankApr(false, 'prime', 60), CONFIG.benchmarksBest.new.prime);
+  assert.ok(bestBankApr(false, 'prime', 84) > bestBankApr(false, 'prime', 36)); // term-aware
+  assert.equal(bestBankApr(false, 'bogus', 60), null);
 });
 
 test('ZIP resolves to state, tax, doc cap, trade-credit', () => {

@@ -12,12 +12,21 @@ export const CONFIG = {
   docFeeCap: 85,               // CA statutory max document processing charge
   acqFeeTypical: 695,
   acqFeeHigh: 1095,            // above this is a marked-up acquisition fee
-  // Average new/used auto-loan APR by credit tier at a typical 60-72mo term.
-  // Source: Experian State of the Automotive Finance Market, Q1 2026.
-  benchmarksAsOf: 'Experian Q1 2026',
+  // Benchmark = the rate you could realistically get from a MAINSTREAM bank
+  // (Ally, Wells Fargo, Chase, Bank of America, Capital One) — not a blended
+  // industry average that includes captive/buy-here-pay-here/credit-union rates.
+  // `benchmarks` is the average across those banks (drives the score); the
+  // top-tier banks (best rate in each tier) are the barometer shown to aim for.
+  benchmarksAsOf: 'Mainstream bank avg (Ally · Wells · Chase · BofA · Cap One), 2026',
+  benchmarksLenders: 'Ally, Wells Fargo, Chase, Bank of America, Capital One',
   benchmarks: {
-    new:  { superprime: 5.2, prime: 6.6, nearprime: 9.6, subprime: 13.2, deepsub: 15.9 },
-    used: { superprime: 6.9, prime: 9.1, nearprime: 14.0, subprime: 18.9, deepsub: 21.6 },
+    new:  { superprime: 5.4, prime: 6.9, nearprime: 9.9, subprime: 13.5, deepsub: 16.0 },
+    used: { superprime: 7.0, prime: 9.2, nearprime: 13.8, subprime: 18.8, deepsub: 21.5 },
+  },
+  // Top-tier mainstream banks (best advertised rate per tier) — the barometer.
+  benchmarksBest: {
+    new:  { superprime: 4.8, prime: 6.2, nearprime: 9.0, subprime: 12.6, deepsub: 15.0 },
+    used: { superprime: 6.3, prime: 8.4, nearprime: 12.8, subprime: 17.8, deepsub: 20.5 },
   },
   // APR rises with term. Adjustment in points vs the 60-month baseline above.
   benchmarkTermAdj: [[36, -0.4], [48, -0.2], [60, 0], [72, 0.3], [84, 0.6]],
@@ -30,9 +39,17 @@ export const CONFIG = {
   },
 };
 
-// Market APR for a credit tier, adjusted for new/used and loan term.
+// Mainstream-bank average APR for a credit tier, adjusted for new/used and term.
 export function marketApr(isUsed, tier, term) {
   const table = isUsed ? CONFIG.benchmarks.used : CONFIG.benchmarks.new;
+  const base = table[tier];
+  if (base == null) return null;
+  return Math.max(0, +(base + lerpCurve(CONFIG.benchmarkTermAdj, term || 60)).toFixed(2));
+}
+
+// Best top-tier mainstream-bank APR — the barometer to aim for / negotiate to.
+export function bestBankApr(isUsed, tier, term) {
+  const table = isUsed ? CONFIG.benchmarksBest.used : CONFIG.benchmarksBest.new;
   const base = table[tier];
   if (base == null) return null;
   return Math.max(0, +(base + lerpCurve(CONFIG.benchmarkTermAdj, term || 60)).toFixed(2));
@@ -538,8 +555,8 @@ export function scoreFinance(i) {
   components.push({
     key: 'apr', label: 'APR vs your credit tier', score: aprScore, weight: 30,
     detail: i.apr.toFixed(2) + '% vs ' + (i.benchmarkApr || 0).toFixed(1) +
-      '% market average (' + (q.aprDelta >= 0 ? '+' : '') + q.aprDelta.toFixed(2) +
-      ' pts). At or below average is where you want to be.',
+      '% mainstream-bank avg (' + (q.aprDelta >= 0 ? '+' : '') + q.aprDelta.toFixed(2) +
+      ' pts). At or below the bank average is where you want to be.',
   });
 
   const dCurve = i.isUsed ? FIN_CURVES.discountUsed : FIN_CURVES.discountNew;
