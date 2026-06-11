@@ -84,6 +84,13 @@ income**, pick an appetite — **Conservative** (8% of income), **Comfortable**
 payment, then solves the car price you can afford (or the down payment). The
 percentages live in `AFFORDABILITY` / `affordabilityPayment` in calc.mjs.
 
+**Current car costs** (optional): the tier is a *total* car budget, so an
+optional "current car payments + insurance ($/mo)" field comes off the top of
+every tier — `$9k income × 12% = $1,080`, minus `$600` you already pay, leaves
+`$480` for the new car. Leave it blank if this is your only car. If your
+existing costs already exceed the tier, it says so and suggests a higher
+appetite.
+
 ## APR is required
 
 The finance tab will not show a score until you enter the APR — an empty APR

@@ -62,10 +62,14 @@ export const AFFORDABILITY = {
   comfortable:  { pct: 0.12, label: 'Comfortable', tag: 'Balanced' },
   aggressive:   { pct: 0.18, label: 'Aggressive', tag: 'Car guy' },
 };
-export function affordabilityPayment(grossMonthly, level) {
+// The tier is a TOTAL monthly car budget. Any existing car costs (other
+// payments + insurance) come off the top, leaving room for the new car. The
+// result can be <= 0, meaning the current fleet already uses the whole budget.
+export function affordabilityPayment(grossMonthly, level, existingMonthly) {
   const a = AFFORDABILITY[level];
   if (!(grossMonthly > 0) || !a) return null;
-  return Math.round(grossMonthly * a.pct);
+  const budget = grossMonthly * a.pct;
+  return Math.round(budget - (existingMonthly > 0 ? existingMonthly : 0));
 }
 
 // ------------------------------------------------------ LOCATION / TAX ----

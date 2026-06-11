@@ -311,6 +311,18 @@ test('affordability payment scales with income and appetite', () => {
   assert.ok(AFFORDABILITY.conservative.pct < AFFORDABILITY.aggressive.pct);
 });
 
+test('existing car costs come off every tier', () => {
+  // $9k income, comfortable = $1,080 budget, minus $600 current = $480 for new.
+  assert.equal(affordabilityPayment(9000, 'comfortable', 600), 1080 - 600);
+  // Comes off all three tiers equally.
+  assert.equal(affordabilityPayment(9000, 'conservative', 600), Math.round(9000 * 0.08) - 600);
+  assert.equal(affordabilityPayment(9000, 'aggressive', 600), Math.round(9000 * 0.18) - 600);
+  // Existing costs exceeding the budget => non-positive (no room).
+  assert.ok(affordabilityPayment(9000, 'conservative', 900) <= 0);
+  // Blank/zero existing behaves like before.
+  assert.equal(affordabilityPayment(9000, 'comfortable', 0), affordabilityPayment(9000, 'comfortable'));
+});
+
 test('config sanity', () => {
   assert.equal(CONFIG.taxRateDefault, 7.75);
   assert.equal(CONFIG.docFeeCap, 85);

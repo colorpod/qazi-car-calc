@@ -226,6 +226,7 @@ const PAGE_HTML = `<!doctype html>
         <div class="afford">
           <div class="lab">Gross monthly income</div>
           <input id="f_income" type="text" inputmode="numeric" placeholder="$10,000">
+          <div class="field" style="margin:11px 0 0"><label>Current car payments + insurance ($/mo)</label><input id="f_existing" type="text" inputmode="numeric" placeholder="0 — blank if this is your only car"></div>
           <div class="levels">
             <div class="level" data-level="conservative"><div class="t">Conservative</div><div class="s">Safe</div></div>
             <div class="level" data-level="comfortable"><div class="t">Comfortable</div><div class="s">Balanced</div></div>
@@ -347,19 +348,23 @@ function num(id) { var v = parseFloat($(id).value); return isFinite(v) ? v : 0; 
 function numOr(id, dflt) { var v = parseFloat($(id).value); return isFinite(v) ? v : dflt; }
 function parseMoney(id) { var v = ($(id).value || '').replace(/[^0-9.]/g, ''); var n = parseFloat(v); return isFinite(n) ? n : 0; }
 
-// Income + appetite level -> fills the target monthly payment + highlights.
+// Income + appetite level (minus existing car costs) -> target payment + highlights.
 function applyAffordability() {
   var income = parseMoney('f_income');
+  var existing = parseMoney('f_existing');
   var level = $('f_level').value;
   var nodes = document.querySelectorAll('#pane-finance .level');
   for (var i = 0; i < nodes.length; i++) {
     nodes[i].classList.toggle('on', nodes[i].getAttribute('data-level') === level);
   }
+  var budget = 0, target = null, overBudget = false;
   if (income > 0 && level) {
-    var p = affordabilityPayment(income, level);
-    if (p != null) $('f_target').value = p;
+    budget = Math.round(income * AFFORDABILITY[level].pct);
+    target = affordabilityPayment(income, level, existing);
+    if (target > 0) { $('f_target').value = target; }
+    else { overBudget = true; $('f_target').value = ''; }
   }
-  return { income: income, level: level };
+  return { income: income, existing: existing, level: level, budget: budget, target: target, overBudget: overBudget };
 }
 
 // A toggleable line: returns its dollar value when checked, else 0, and dims
@@ -606,9 +611,14 @@ function recalcFinance() {
   var solveFor = $('f_solvefor').value;
   var targetOn = $('f_target').value.trim() !== '' && num('f_target') > 0;
   applySolveFields('f', targetOn, solveFor);
-  $('f_target_hint').textContent = targetOn
-    ? (solveFor === 'price' ? 'We solve the highest car price for this payment.' : 'Enter the car price; we solve the down payment for this payment.')
-    : 'Pick a level (or type a payment) and we solve what you can afford.';
+  if (aff.overBudget) {
+    $('f_target_hint').textContent = 'Your ' + money(aff.existing) + '/mo in current car costs already use your ' +
+      AFFORDABILITY[aff.level].label + ' budget (' + money(aff.budget) + '). Pick a higher appetite or trim costs.';
+  } else {
+    $('f_target_hint').textContent = targetOn
+      ? (solveFor === 'price' ? 'We solve the highest car price for this payment.' : 'Enter the car price; we solve the down payment for this payment.')
+      : 'Pick a level (or type a payment) and we solve what you can afford.';
+  }
 
   // APR is required — without it the math assumes 0% and shows a fake great deal.
   var aprRaw = $('f_apr').value.trim();
@@ -624,8 +634,8 @@ function recalcFinance() {
 
   var affNote = '';
   if (aff.income > 0 && aff.level && num('f_target') > 0) {
-    var pct = Math.round((num('f_target') / aff.income) * 100);
-    affNote = '<b>' + AFFORDABILITY[aff.level].label + '</b> budget · ' + money(num('f_target')) + '/mo (' + pct + '% of ' + money(aff.income) + ' income). ';
+    affNote = '<b>' + AFFORDABILITY[aff.level].label + '</b> · ' + money(num('f_target')) + '/mo for this car' +
+      (aff.existing > 0 ? ' (after ' + money(aff.existing) + '/mo current cars)' : '') + '. ';
   }
   var note = null;
   // Auto-estimate registration from the price whenever price is a known input.
@@ -712,7 +722,7 @@ function recalc() {
 
 // ------------------------------------------------------------- wiring ----
 var LEASE_IDS = ['l_zip','l_target','l_solvefor','l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_tax'];
-var FIN_IDS = ['f_income','f_level','f_target','f_solvefor','f_zip','f_msrp','f_price','f_apr','f_term','f_tier','f_bench','f_down','f_trade','f_rebates','f_addons','f_doc','f_reg','f_tax','f_exit'];
+var FIN_IDS = ['f_income','f_existing','f_level','f_target','f_solvefor','f_zip','f_msrp','f_price','f_apr','f_term','f_tier','f_bench','f_down','f_trade','f_rebates','f_addons','f_doc','f_reg','f_tax','f_exit'];
 var CHECK_IDS = ['l_zipauto','f_zipauto','f_bench_auto','l_tax_on','l_reg_on','f_tax_on','f_reg_on','l_target_on'];
 
 function save() {
@@ -821,7 +831,7 @@ $('l_reset').addEventListener('click', function () {
 $('f_example').addEventListener('click', function () {
   setUsed(true);
   $('f_zip').value = '92618'; $('l_zip').value = '92618';
-  $('f_income').value = ''; $('f_level').value = ''; $('f_target').value = '';
+  $('f_income').value = ''; $('f_existing').value = ''; $('f_level').value = ''; $('f_target').value = '';
   $('f_msrp').value = 22000; $('f_price').value = 20000; $('f_rebates').value = 0;
   $('f_trade').value = 0; $('f_down').value = 3000; $('f_apr').value = 8.4;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_addons').value = 0;
