@@ -1,5 +1,9 @@
 # qazi-car-calc — Car Deal Gauge
 
+> **New to this repo? Read [HANDOFF.md](HANDOFF.md) first** — architecture, the
+> calc.mjs API, the deploy path (it's not `wrangler deploy`), and the gotchas.
+> This README covers the scoring-rule tables.
+
 Lease + finance deal checker with a 0-100 quality gauge. One page, two tabs.
 Plug in the numbers from a dealer worksheet and it tells you if the deal is
 great, good, fair, below average, or bad, and exactly why.
