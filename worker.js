@@ -275,7 +275,7 @@ const PAGE_HTML = `<!doctype html>
       </div>
       <div class="wstep" data-step="7">
         <div class="wlabel">8. Pick a car <small>or skip</small></div>
-        <div class="field"><select id="wiz_vehicle"><option value="">Pick make / model — or skip</option></select></div>
+        <div class="field"><select id="wiz_vehicle"><option value="">Pick make / model — or skip</option></select><div class="hint" id="wiz_vehicle_hint">Enter budget details first; used-car pricing is nationwide average for clean-title cars under 40k miles, not the cheapest local listing.</div></div>
       </div>
       <div class="wizard-nav">
         <button class="back-btn" id="wiz_back" type="button">Back</button>
@@ -377,9 +377,9 @@ const PAGE_HTML = `<!doctype html>
           <button id="f_new">New car</button>
           <button id="f_used" class="on">Used car</button>
         </div>
-        <div class="field"><label>Pick a vehicle (optional)</label><select id="f_vehicle"><option value="">— choose make / model —</option></select><div class="hint">Fills MSRP / starting price (typical, confirm with the dealer).</div></div>
+        <div class="field"><label>Pick a vehicle (optional)</label><select id="f_vehicle"><option value="">— choose make / model —</option></select><div class="hint">New fills MSRP. Used fills nationwide average for clean-title, no-accident cars under 40k miles — not the lowest suspicious listing.</div></div>
         <div class="row">
-          <div class="field"><label id="f_msrp_label">Fair market value (KBB/Edmunds) $</label><input id="f_msrp" type="number" step="100" placeholder="22000"></div>
+          <div class="field"><label id="f_msrp_label">Nationwide clean-title avg value, &lt;40k mi $</label><input id="f_msrp" type="number" step="100" placeholder="22000"></div>
           <div class="field"><label id="f_price_label">Negotiated price $</label><input id="f_price" type="number" step="100" placeholder="20000"></div>
         </div>
         <div class="row">
@@ -443,7 +443,7 @@ const PAGE_HTML = `<!doctype html>
         <div id="how-finance" class="hidden">
           <ul>
             <li><b>APR vs your credit tier (30%)</b>: compared to current US market averages (Experian-style, editable). At or below average scores well.</li>
-            <li><b>Discount (25%)</b>: new cars vs MSRP (4%+ off is solid in 2026); used cars vs fair market value (KBB/Edmunds).</li>
+            <li><b>Discount (25%)</b>: new cars vs MSRP (4%+ off is solid in 2026); used cars vs nationwide average clean-title/no-accident value under 40k miles.</li>
             <li><b>Loan term (15%)</b>: 48-60 months is healthy. 72+ bleeds interest and keeps you underwater.</li>
             <li><b>Loan-to-value (15%)</b>: financing under 90% of the price (10%+ down) protects you.</li>
             <li><b>Total interest burden (10%)</b>: lifetime interest as % of amount financed.</li>
@@ -764,17 +764,119 @@ function applySolveFields(prefix, on, solveFor) {
 }
 
 // Populate a vehicle <select> grouped by make, from the bundled inventory.
-function populateVehicles(id) {
+function populateVehicles(id, filterFn) {
   var sel = $(id);
+  var current = sel.value;
+  sel.innerHTML = '';
+  var first = document.createElement('option');
+  first.value = '';
+  first.textContent = id === 'wiz_vehicle' ? 'Pick make / model — or skip' : '— choose make / model —';
+  sel.appendChild(first);
   var lastMk = '';
   var grp = null;
+  var count = 0;
+  var kept = false;
   for (var i = 0; i < VEHICLES.length; i++) {
     var v = VEHICLES[i];
+    if (filterFn && !filterFn(v, i)) continue;
     if (v.mk !== lastMk) { grp = document.createElement('optgroup'); grp.label = v.mk; sel.appendChild(grp); lastMk = v.mk; }
     var o = document.createElement('option');
     o.value = String(i);
-    o.textContent = v.md + ' — $' + v.msrp.toLocaleString('en-US');
+    var vehicleLabel = id === 'wiz_vehicle' ? (v.mk + ' ' + v.md) : v.md;
+    o.textContent = vehicleLabel + (v.used && !/\(used\)/i.test(v.md) ? ' (used)' : '') + ' — $' + v.msrp.toLocaleString('en-US') + (id === 'wiz_vehicle' && v.band ? ' · ' + v.band : '');
     grp.appendChild(o);
+    count += 1;
+    if (String(i) === current) kept = true;
+  }
+  if (kept) sel.value = current;
+  else sel.value = '';
+  return count;
+}
+
+function estimateWizardPayment(v) {
+  var target = selectedWizardTarget();
+  if (!(target > 0)) return 0;
+  var down = num('wiz_down');
+  var loc = resolveZip($('wiz_zip').value || '92618');
+  var taxRate = ((loc ? loc.taxRate : CONFIG.taxRateDefault) || 0) / 100;
+  if (wizDeal === 'lease') {
+    var term = 36;
+    var cap = v.msrp + CONFIG.acqFeeDefault - down;
+    var residual = v.msrp * (v.res / 100);
+    var base = ((cap - residual) / term) + ((cap + residual) * v.mf);
+    return Math.max(0, base * (1 + taxRate));
+  }
+  var score = num('wiz_credit');
+  var aprObj = aprFromCredit(score || 700, wizDeal === 'used', 60);
+  var apr = aprObj.best != null ? aprObj.best : (aprObj.avg != null ? aprObj.avg : CONFIG.aprDefault);
+  var reg = estimateRegistration(v.msrp, loc ? loc.state : 'CA');
+  var amount = v.msrp * (1 + taxRate) + CONFIG.docFeeDefault * (1 + taxRate) + reg - down;
+  var r = apr / 100 / 12;
+  return amount <= 0 ? 0 : amount * r / (1 - Math.pow(1 + r, -60));
+}
+
+function refreshWizardVehicles() {
+  var target = selectedWizardTarget();
+  var down = num('wiz_down');
+  var loc = resolveZip($('wiz_zip').value || '92618');
+  var taxPct = loc ? loc.taxRate : CONFIG.taxRateDefault;
+  var state = loc ? loc.state : 'CA';
+  var score = num('wiz_credit') || 700;
+  var aprObj = aprFromCredit(score, wizDeal === 'used', 60);
+  var apr = aprObj.best != null ? aprObj.best : (aprObj.avg != null ? aprObj.avg : CONFIG.aprDefault);
+  var bracketLabel = target > 0 ? money(target) + '/mo' : 'your budget';
+
+  var count = populateVehicles('wiz_vehicle', function (v) {
+    if (wizDeal === 'lease' && (v.used || v.lease === false)) return false;
+    if (wizDeal === 'new' && v.used) return false;
+    if (wizDeal === 'used' && !v.used && down > 50000) return false;
+    if (!(target > 0)) return true;
+
+    if (wizDeal === 'lease') {
+      var leasePay = estimateWizardPayment(v);
+      var needLeaseDown = solveLeaseDown({
+        msrp: v.msrp, price: v.msrp, residualPct: v.res, mf: v.mf, term: 36,
+        acqFee: CONFIG.acqFeeDefault, rebates: 0, taxPct: taxPct,
+      }, target);
+      if (needLeaseDown == null) return false;
+      var leaseTooExpensive = needLeaseDown > Math.max(down + 2500, v.msrp * 0.10);
+      var leaseTooCheap = leasePay > 0 && leasePay < target * 0.45 && needLeaseDown <= 0;
+      return !leaseTooExpensive && !leaseTooCheap;
+    }
+
+    var needFinDown = solveFinanceDown({
+      price: v.msrp, apr: apr, term: 60, docFee: CONFIG.docFeeDefault,
+      govFees: estimateRegistration(v.msrp, state), addons: 0,
+      rebates: 0, tradeEquity: 0, taxPct: taxPct,
+    }, target);
+    if (needFinDown == null) return false;
+
+    // For large-cash/high-payment shoppers, show the actual car bracket their cash + payment can buy
+    // instead of mixing in ordinary cars that would be trivially affordable.
+    if (down >= 20000 || target >= 1000) {
+      var floor = Math.max(0, down + target * 15);
+      var ceiling = down + target * 75;
+      if (v.msrp < floor || v.msrp > ceiling) return false;
+      return needFinDown <= down + Math.max(50000, v.msrp * 0.25);
+    }
+
+    var finPay = estimateWizardPayment(v);
+    if (finPay > 0) {
+      var ratio = finPay / target;
+      if (ratio < 0.55 || ratio > 1.25) return false;
+    }
+    if (needFinDown > Math.max(down + 3000, v.msrp * 0.12)) return false;
+    return true;
+  });
+  var hint = $('wiz_vehicle_hint');
+  if (hint) {
+    if (target > 0) {
+      hint.textContent = count + ' cars matched to ' + bracketLabel + ' with about ' + money(down) + ' down. ' +
+        (wizDeal === 'lease'
+          ? 'Lease uses make-specific MF/residual and excludes used finance-only cars.'
+          : 'Used prices are nationwide average clean-title/no-accident under-40k-mile comps; ZIP is only for tax/fees.');
+    }
+    else hint.textContent = 'Enter income/payment first; this list will narrow to cars near your range.';
   }
 }
 
@@ -1114,6 +1216,26 @@ function updateWizard() {
     note += isFinance ? 'Add credit score to pre-fill APR benchmark.' : 'Add credit score for context; lease still needs dealer MF/residual.';
   }
   $('wiz_avg_note').textContent = note;
+  refreshWizardVehicles();
+}
+
+function applyVehicleChoice(prefix, x) {
+  $(prefix + '_vehicle').value = x;
+  if (x === '') return;
+  var v = VEHICLES[+x];
+  $(prefix + '_msrp').value = v.msrp;
+  $(prefix + '_price').value = v.msrp;
+  // Once a specific car is selected and a target payment exists, the car price is no longer the unknown.
+  // Solve the required down payment instead so changing $22k -> $67k visibly changes the needed cash/payment math.
+  if ($(prefix + '_target') && $(prefix + '_target').value.trim() !== '' && num(prefix + '_target') > 0) {
+    $(prefix + '_solvefor').value = 'down';
+  }
+  if (prefix === 'l') {
+    $('l_mf').value = v.mf;
+    $('l_residual').value = v.res;
+    $('l_term').value = 36;
+    $('l_miles').value = 12000;
+  }
 }
 
 function fillFromWizardVehicle(prefix) {
@@ -1128,15 +1250,7 @@ function fillFromWizardVehicle(prefix) {
     }
     return;
   }
-  var v = VEHICLES[+x];
-  $(prefix + '_msrp').value = v.msrp;
-  $(prefix + '_price').value = v.msrp;
-  if (prefix === 'l') {
-    $('l_mf').value = v.mf;
-    $('l_residual').value = v.res;
-    $('l_term').value = 36;
-    $('l_miles').value = 12000;
-  }
+  applyVehicleChoice(prefix, x);
 }
 
 function runWizard() {
@@ -1151,7 +1265,7 @@ function runWizard() {
   if (wizDeal === 'lease') {
     setMode('lease');
     $('l_target').value = target > 0 ? target : '';
-    $('l_solvefor').value = down > 0 ? 'price' : 'down';
+    $('l_solvefor').value = (down > 0 && $('wiz_vehicle').value === '') ? 'price' : 'down';
     $('l_down').value = down > 0 ? down : 0;
     fillFromWizardVehicle('l');
     $('l_zipauto').checked = true;
@@ -1165,7 +1279,7 @@ function runWizard() {
     $('f_target').value = target > 0 ? target : '';
     if (manualTarget) $('f_target').setAttribute('data-manual', '1');
     else $('f_target').removeAttribute('data-manual');
-    $('f_solvefor').value = down > 0 ? 'price' : 'down';
+    $('f_solvefor').value = (down > 0 && $('wiz_vehicle').value === '') ? 'price' : 'down';
     $('f_down').value = down > 0 ? down : 0;
     if (score > 0) {
       var apr = aprFromCredit(score, wizDeal === 'used', numOr('f_term', 60));
@@ -1228,7 +1342,7 @@ function wireWizard() {
   for (var j = 0; j < lnodes.length; j++) lnodes[j].addEventListener('click', function () { wizLevel = this.getAttribute('data-level'); $('wiz_target').value = ''; updateWizard(); });
   var creditNodes = document.querySelectorAll('#wiz_credit_choices .choice');
   for (var cn = 0; cn < creditNodes.length; cn++) creditNodes[cn].addEventListener('click', function () { $('wiz_credit').value = this.getAttribute('data-score'); updateWizard(); advanceWizard(); });
-  ['wiz_income','wiz_existing','wiz_credit','wiz_target','wiz_down','wiz_zip','wiz_vehicle'].forEach(function (id) { $(id).addEventListener('input', updateWizard); $(id).addEventListener('change', updateWizard); });
+  ['wiz_income','wiz_existing','wiz_credit','wiz_target','wiz_down','wiz_zip','wiz_vehicle'].forEach(function (id) { $(id).addEventListener('input', updateWizard); $(id).addEventListener('change', updateWizard); $(id).addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); advanceWizard(); } }); });
   $('wiz_target_range').addEventListener('input', function () { $('wiz_target').value = this.value; updateWizard(); });
   $('wiz_next').addEventListener('click', advanceWizard);
   $('wiz_back').addEventListener('click', function () { if (wizStep > 0) { wizStep -= 1; renderWizardStep(); updateWizard(); } });
@@ -1297,7 +1411,7 @@ function setUsed(used) {
   finUsed = used;
   $('f_new').classList.toggle('on', !used);
   $('f_used').classList.toggle('on', used);
-  $('f_msrp_label').textContent = used ? 'Fair market value (KBB/Edmunds) $' : 'MSRP (sticker) $';
+  $('f_msrp_label').textContent = used ? 'Nationwide clean-title avg value, <40k mi $' : 'MSRP (sticker) $';
 }
 
 $('tab-lease').addEventListener('click', function () { setMode('lease'); });
@@ -1389,16 +1503,12 @@ populateVehicles('f_vehicle');
 wireWizard();
 $('l_vehicle').addEventListener('change', function () {
   var x = $('l_vehicle').value; if (x === '') { recalc(); return; }
-  var v = VEHICLES[+x];
-  $('l_msrp').value = v.msrp; $('l_price').value = v.msrp;
-  $('l_mf').value = v.mf; $('l_residual').value = v.res;
-  $('l_term').value = 36; $('l_miles').value = 12000;
+  applyVehicleChoice('l', x);
   recalc();
 });
 $('f_vehicle').addEventListener('change', function () {
   var x = $('f_vehicle').value; if (x === '') { recalc(); return; }
-  var v = VEHICLES[+x];
-  $('f_msrp').value = v.msrp; $('f_price').value = v.msrp;
+  applyVehicleChoice('f', x);
   recalc();
 });
 

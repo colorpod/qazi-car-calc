@@ -209,6 +209,16 @@ test('lease scoring: marked-up MF triggers critical cap', () => {
   assert.ok(s.flags.some(f => f.msg.includes('legal cap')));
 });
 
+test('lease scoring: huge down payment is not a good deal', () => {
+  const s = scoreLease({
+    msrp: 67000, price: 67000, rebates: 0, down: 12786, acqFee: 695,
+    docFee: 85, govFees: 700, mf: 0.00160, residualPct: 58, term: 36, taxPct: 7.75,
+  });
+  assert.ok(s.critical, 'huge lease down should be critical');
+  assert.ok(s.score <= 49, 'score capped, got ' + s.score);
+  assert.ok(s.flags.some(f => f.msg.includes('huge lease down payment')));
+});
+
 test('lease: invalid inputs return null', () => {
   assert.equal(leaseQuote({ msrp: 0, price: 1, term: 36, residualPct: 58, mf: 0.001, taxPct: 7.75 }), null);
   assert.equal(scoreLease({ msrp: 50000, price: 46000, term: 0, residualPct: 58, mf: 0.001, taxPct: 7.75 }), null);
@@ -257,6 +267,17 @@ test('finance scoring: healthy deal scores GOOD or better', () => {
   });
   assert.ok(s.score >= 70, 'score ' + s.score);
   assert.equal(s.critical, false);
+});
+
+test('finance scoring: huge down payment does not fake a great deal', () => {
+  const s = scoreFinance({
+    isUsed: false, msrp: 67000, price: 67000, rebates: 0, tradeEquity: 0,
+    down: 41118, apr: 6.3, term: 60, benchmarkApr: 8.4,
+    docFee: 85, govFees: 1000, addons: 0, taxPct: 7.75,
+  });
+  assert.ok(s.critical, 'huge finance down should be critical');
+  assert.ok(s.score <= 49, 'score capped, got ' + s.score);
+  assert.ok(s.flags.some(f => f.msg.includes('massive amount down')));
 });
 
 test('CA rebate tax rule: rebate does not reduce sales tax', () => {
@@ -327,7 +348,7 @@ test('vehicle inventory is well-formed', () => {
   assert.ok(VEHICLES.length >= 20, 'has a decent roster');
   for (const v of VEHICLES) {
     assert.ok(v.mk && v.md, 'make + model present');
-    assert.ok(v.msrp > 5000 && v.msrp < 200000, 'plausible MSRP: ' + v.md);
+    assert.ok(v.msrp > 5000 && v.msrp < (v.used ? 300000 : 200000), 'plausible MSRP: ' + v.md);
     assert.ok(v.mf >= 0 && v.mf < 0.01, 'plausible money factor: ' + v.md);
     assert.ok(v.res > 30 && v.res < 80, 'plausible residual: ' + v.md);
   }

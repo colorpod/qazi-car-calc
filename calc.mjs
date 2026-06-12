@@ -74,42 +74,86 @@ export function affordabilityPayment(grossMonthly, level, existingMonthly) {
 
 // ---------------------------------------------------------- VEHICLES ----
 // Curated 2026 starting points so you can pick a car instead of hunting specs.
-// msrp = sticker; mf + res are TYPICAL lease terms at 36mo/12k (captives reset
+// msrp = sticker for new cars. For used cars, msrp is the nationwide average
+// clean-title/no-accident retail value for cars under ~40k miles — not a local
+// cheapest listing that may hide history, damage, branded title, or condition issues.
+// mf + res are TYPICAL lease terms at 36mo/12k for new leaseable cars (captives reset
 // these monthly, so confirm with the dealer). Editable after you pick.
 export const VEHICLES = [
-  { mk: 'Acura', md: 'Integra A-Spec', msrp: 36000, mf: 0.00130, res: 58 },
-  { mk: 'Acura', md: 'MDX Technology', msrp: 56000, mf: 0.00150, res: 57 },
-  { mk: 'Audi', md: 'A4 Premium', msrp: 45000, mf: 0.00160, res: 57 },
-  { mk: 'Audi', md: 'Q5 45 Premium', msrp: 50000, mf: 0.00155, res: 59 },
-  { mk: 'BMW', md: '330i', msrp: 47000, mf: 0.00160, res: 60 },
-  { mk: 'BMW', md: 'X3 30i', msrp: 51000, mf: 0.00150, res: 61 },
-  { mk: 'BMW', md: 'X5 xDrive40i', msrp: 67000, mf: 0.00160, res: 60 },
-  { mk: 'Chevrolet', md: 'Silverado 1500 LT', msrp: 47000, mf: 0.00150, res: 56 },
-  { mk: 'Ford', md: 'F-150 XLT', msrp: 48000, mf: 0.00140, res: 58 },
-  { mk: 'Ford', md: 'Mustang Mach-E Premium', msrp: 50000, mf: 0.00150, res: 53 },
-  { mk: 'Genesis', md: 'GV70 2.5T', msrp: 50000, mf: 0.00140, res: 56 },
-  { mk: 'Honda', md: 'Accord EX', msrp: 31000, mf: 0.00115, res: 60 },
-  { mk: 'Honda', md: 'Civic Sport', msrp: 28000, mf: 0.00110, res: 62 },
-  { mk: 'Honda', md: 'CR-V EX', msrp: 34000, mf: 0.00120, res: 63 },
-  { mk: 'Hyundai', md: 'Ioniq 5 SEL', msrp: 47000, mf: 0.00120, res: 55 },
-  { mk: 'Jeep', md: 'Grand Cherokee Laredo', msrp: 45000, mf: 0.00170, res: 55 },
-  { mk: 'Kia', md: 'EV6 Wind', msrp: 49000, mf: 0.00125, res: 55 },
-  { mk: 'Kia', md: 'Telluride EX', msrp: 44000, mf: 0.00120, res: 60 },
-  { mk: 'Lexus', md: 'ES 350', msrp: 46000, mf: 0.00125, res: 60 },
-  { mk: 'Lexus', md: 'RX 350', msrp: 52000, mf: 0.00130, res: 63 },
-  { mk: 'Mazda', md: 'CX-5 Preferred', msrp: 32000, mf: 0.00115, res: 59 },
-  { mk: 'Mercedes-Benz', md: 'C 300', msrp: 49000, mf: 0.00165, res: 58 },
-  { mk: 'Mercedes-Benz', md: 'GLC 300', msrp: 52000, mf: 0.00160, res: 60 },
-  { mk: 'Porsche', md: 'Macan', msrp: 65000, mf: 0.00170, res: 60 },
-  { mk: 'Rivian', md: 'R1S Adventure', msrp: 78000, mf: 0.00250, res: 52 },
-  { mk: 'Rivian', md: 'R1T Adventure', msrp: 72000, mf: 0.00250, res: 53 },
-  { mk: 'Subaru', md: 'Outback Premium', msrp: 33000, mf: 0.00120, res: 60 },
-  { mk: 'Tesla', md: 'Model 3 Long Range', msrp: 47000, mf: 0.00180, res: 57 },
-  { mk: 'Tesla', md: 'Model Y Long Range', msrp: 50000, mf: 0.00180, res: 58 },
-  { mk: 'Toyota', md: 'Camry SE', msrp: 30000, mf: 0.00100, res: 62 },
-  { mk: 'Toyota', md: 'RAV4 XLE', msrp: 34000, mf: 0.00110, res: 64 },
-  { mk: 'Toyota', md: 'Tacoma SR5', msrp: 38000, mf: 0.00100, res: 68 },
-];
+  // Economy / low-payment lease targets
+  { mk: 'Chevrolet', md: 'Trax LT', msrp: 24000, mf: 0.00125, res: 58, body: 'SUV', band: 'economy' },
+  { mk: 'Honda', md: 'Civic Sport', msrp: 28000, mf: 0.00110, res: 62, body: 'sedan', band: 'economy' },
+  { mk: 'Honda', md: 'HR-V Sport', msrp: 30000, mf: 0.00120, res: 60, body: 'SUV', band: 'economy' },
+  { mk: 'Hyundai', md: 'Elantra SEL', msrp: 24000, mf: 0.00105, res: 60, body: 'sedan', band: 'economy' },
+  { mk: 'Hyundai', md: 'Tucson SEL', msrp: 33000, mf: 0.00125, res: 60, body: 'SUV', band: 'mainstream' },
+  { mk: 'Kia', md: 'K4 EX', msrp: 26000, mf: 0.00110, res: 59, body: 'sedan', band: 'economy' },
+  { mk: 'Mazda', md: 'Mazda3 Preferred', msrp: 28000, mf: 0.00120, res: 58, body: 'sedan', band: 'economy' },
+  { mk: 'Mazda', md: 'CX-5 Preferred', msrp: 32000, mf: 0.00115, res: 59, body: 'SUV', band: 'mainstream' },
+  { mk: 'Nissan', md: 'Sentra SV', msrp: 24000, mf: 0.00120, res: 57, body: 'sedan', band: 'economy' },
+  { mk: 'Nissan', md: 'Altima SV', msrp: 30000, mf: 0.00135, res: 56, body: 'sedan', band: 'mainstream' },
+  { mk: 'Subaru', md: 'Impreza Sport', msrp: 27000, mf: 0.00120, res: 58, body: 'hatch', band: 'economy' },
+  { mk: 'Subaru', md: 'Outback Premium', msrp: 33000, mf: 0.00120, res: 60, body: 'wagon', band: 'mainstream' },
+  { mk: 'Toyota', md: 'Corolla LE', msrp: 23000, mf: 0.00100, res: 63, body: 'sedan', band: 'economy' },
+  { mk: 'Toyota', md: 'Camry SE', msrp: 30000, mf: 0.00100, res: 62, body: 'sedan', band: 'mainstream' },
+  { mk: 'Toyota', md: 'RAV4 XLE', msrp: 34000, mf: 0.00110, res: 64, body: 'SUV', band: 'mainstream' },
+  { mk: 'Volkswagen', md: 'Jetta SE', msrp: 26000, mf: 0.00115, res: 58, body: 'sedan', band: 'economy' },
+  { mk: 'Volkswagen', md: 'Tiguan SE', msrp: 34000, mf: 0.00135, res: 57, body: 'SUV', band: 'mainstream' },
+
+  // Mainstream / family / truck
+  { mk: 'Acura', md: 'Integra A-Spec', msrp: 36000, mf: 0.00130, res: 58, body: 'sedan', band: 'mainstream' },
+  { mk: 'Acura', md: 'MDX Technology', msrp: 56000, mf: 0.00150, res: 57, body: 'SUV', band: 'premium' },
+  { mk: 'Chevrolet', md: 'Silverado 1500 LT', msrp: 47000, mf: 0.00150, res: 56, body: 'truck', band: 'mainstream' },
+  { mk: 'Ford', md: 'F-150 XLT', msrp: 48000, mf: 0.00140, res: 58, body: 'truck', band: 'mainstream' },
+  { mk: 'Ford', md: 'Mustang Mach-E Premium', msrp: 50000, mf: 0.00150, res: 53, body: 'EV', band: 'premium' },
+  { mk: 'Honda', md: 'Accord EX', msrp: 31000, mf: 0.00115, res: 60, body: 'sedan', band: 'mainstream' },
+  { mk: 'Honda', md: 'CR-V EX', msrp: 34000, mf: 0.00120, res: 63, body: 'SUV', band: 'mainstream' },
+  { mk: 'Hyundai', md: 'Ioniq 5 SEL', msrp: 47000, mf: 0.00120, res: 55, body: 'EV', band: 'premium' },
+  { mk: 'Jeep', md: 'Grand Cherokee Laredo', msrp: 45000, mf: 0.00170, res: 55, body: 'SUV', band: 'mainstream' },
+  { mk: 'Kia', md: 'EV6 Wind', msrp: 49000, mf: 0.00125, res: 55, body: 'EV', band: 'premium' },
+  { mk: 'Kia', md: 'Telluride EX', msrp: 44000, mf: 0.00120, res: 60, body: 'SUV', band: 'mainstream' },
+  { mk: 'Toyota', md: 'Tacoma SR5', msrp: 38000, mf: 0.00100, res: 68, body: 'truck', band: 'mainstream' },
+
+  // Premium / luxury lease-sensitive cars
+  { mk: 'Audi', md: 'A4 Premium', msrp: 45000, mf: 0.00160, res: 57, body: 'sedan', band: 'premium' },
+  { mk: 'Audi', md: 'Q5 45 Premium', msrp: 50000, mf: 0.00155, res: 59, body: 'SUV', band: 'premium' },
+  { mk: 'Audi', md: 'Q7 Premium Plus', msrp: 65000, mf: 0.00175, res: 55, body: 'SUV', band: 'luxury' },
+  { mk: 'BMW', md: '330i', msrp: 47000, mf: 0.00160, res: 60, body: 'sedan', band: 'premium' },
+  { mk: 'BMW', md: 'X3 30i', msrp: 51000, mf: 0.00150, res: 61, body: 'SUV', band: 'premium' },
+  { mk: 'BMW', md: 'X5 xDrive40i', msrp: 67000, mf: 0.00160, res: 60, body: 'SUV', band: 'luxury' },
+  { mk: 'BMW', md: 'M3 Competition', msrp: 87000, mf: 0.00210, res: 55, body: 'sedan', band: 'performance' },
+  { mk: 'Cadillac', md: 'Escalade Premium Luxury', msrp: 98000, mf: 0.00220, res: 53, body: 'SUV', band: 'luxury' },
+  { mk: 'Genesis', md: 'GV70 2.5T', msrp: 50000, mf: 0.00140, res: 56, body: 'SUV', band: 'premium' },
+  { mk: 'Land Rover', md: 'Defender 110 S', msrp: 70000, mf: 0.00210, res: 56, body: 'SUV', band: 'luxury' },
+  { mk: 'Lexus', md: 'ES 350', msrp: 46000, mf: 0.00125, res: 60, body: 'sedan', band: 'premium' },
+  { mk: 'Lexus', md: 'RX 350', msrp: 52000, mf: 0.00130, res: 63, body: 'SUV', band: 'premium' },
+  { mk: 'Mercedes-Benz', md: 'C 300', msrp: 49000, mf: 0.00165, res: 58, body: 'sedan', band: 'premium' },
+  { mk: 'Mercedes-Benz', md: 'GLC 300', msrp: 52000, mf: 0.00160, res: 60, body: 'SUV', band: 'premium' },
+  { mk: 'Mercedes-Benz', md: 'GLE 450', msrp: 76000, mf: 0.00190, res: 57, body: 'SUV', band: 'luxury' },
+  { mk: 'Porsche', md: 'Macan', msrp: 65000, mf: 0.00170, res: 60, body: 'SUV', band: 'luxury' },
+  { mk: 'Porsche', md: 'Cayenne', msrp: 92000, mf: 0.00230, res: 58, body: 'SUV', band: 'luxury' },
+  { mk: 'Rivian', md: 'R1S Adventure', msrp: 78000, mf: 0.00250, res: 52, body: 'EV', band: 'luxury' },
+  { mk: 'Rivian', md: 'R1T Adventure', msrp: 72000, mf: 0.00250, res: 53, body: 'EV', band: 'luxury' },
+  { mk: 'Tesla', md: 'Model 3 Long Range', msrp: 47000, mf: 0.00180, res: 57, body: 'EV', band: 'premium' },
+  { mk: 'Tesla', md: 'Model Y Long Range', msrp: 50000, mf: 0.00180, res: 58, body: 'EV', band: 'premium' },
+  { mk: 'Tesla', md: 'Model S Plaid', msrp: 90000, mf: 0.00220, res: 50, body: 'EV', band: 'performance' },
+
+  // Used enthusiast / exotic finance targets. Values are rough retail brackets, not lease defaults.
+  { mk: 'Aston Martin', md: 'Vantage Coupe (used)', msrp: 125000, mf: 0.00320, res: 48, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'Audi', md: 'R8 V10 (used)', msrp: 165000, mf: 0.00300, res: 52, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'Bentley', md: 'Continental GT V8 (used)', msrp: 155000, mf: 0.00320, res: 47, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'Ferrari', md: 'California T (used)', msrp: 145000, mf: 0.00350, res: 50, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'Ferrari', md: 'Portofino (used)', msrp: 210000, mf: 0.00350, res: 52, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'Ferrari', md: '488 GTB (used)', msrp: 245000, mf: 0.00380, res: 54, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'Lamborghini', md: 'Huracan LP610-4 (used)', msrp: 225000, mf: 0.00380, res: 54, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'Lamborghini', md: 'Urus (used)', msrp: 235000, mf: 0.00360, res: 52, body: 'exotic SUV', band: 'exotic', used: true, lease: false },
+  { mk: 'McLaren', md: '570S (used)', msrp: 150000, mf: 0.00380, res: 50, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'McLaren', md: '720S (used)', msrp: 240000, mf: 0.00400, res: 50, body: 'exotic', band: 'exotic', used: true, lease: false },
+  { mk: 'Mercedes-Benz', md: 'AMG GT R (used)', msrp: 145000, mf: 0.00310, res: 48, body: 'performance', band: 'exotic', used: true, lease: false },
+  { mk: 'Porsche', md: '911 Carrera S (used)', msrp: 135000, mf: 0.00280, res: 58, body: 'sports', band: 'exotic', used: true, lease: false },
+  { mk: 'Porsche', md: '911 Turbo S (used)', msrp: 220000, mf: 0.00300, res: 60, body: 'sports', band: 'exotic', used: true, lease: false },
+  { mk: 'Porsche', md: 'GT3 (used)', msrp: 230000, mf: 0.00320, res: 62, body: 'sports', band: 'exotic', used: true, lease: false },
+  { mk: 'Rolls-Royce', md: 'Ghost (used)', msrp: 230000, mf: 0.00400, res: 45, body: 'ultra-luxury', band: 'exotic', used: true, lease: false },
+].sort((a, b) => a.mk.localeCompare(b.mk) || a.md.localeCompare(b.md));
 
 // ------------------------------------------------------ LOCATION / TAX ----
 // ZIP -> state, then state -> vehicle sales-tax rate, DMV fee model, doc-fee
@@ -422,6 +466,7 @@ export function scoreLease(i) {
       '% APR equivalent. Dealers can mark this up; ask for the buy rate.',
   });
 
+  let critical = false;
   let feeScore = 100;
   const leaseDocCap = ('docFeeCap' in i) ? i.docFeeCap : CONFIG.docFeeCap;
   const leaseDocFlag = docFeeFlag(i.docFee, leaseDocCap, i.stateLabel);
@@ -434,7 +479,11 @@ export function scoreLease(i) {
     feeScore -= 20;
     flags.push({ level: 'warn', msg: 'Government fees over 2.5% of price; check the worksheet for padded charges.' });
   }
-  if ((i.down || 0) > 2000) {
+  if ((i.down || 0) > 0.10 * i.msrp) {
+    feeScore -= 35;
+    critical = true;
+    flags.push({ level: 'critical', msg: 'This payment only works with a huge lease down payment ($' + Math.round(i.down).toLocaleString('en-US') + '). That is not a clean lease — if the car is totaled, that cash can disappear.' });
+  } else if ((i.down || 0) > 2000) {
     feeScore -= 15;
     flags.push({ level: 'warn', msg: 'Large down payment on a lease: if the car is totaled, that money is gone. Roll it into the payment instead.' });
   }
@@ -449,7 +498,6 @@ export function scoreLease(i) {
   });
 
   // Critical flags cap the score: one of these means it cannot be a good deal.
-  let critical = false;
   if (q.mfApr >= 12) {
     critical = true;
     flags.push({ level: 'critical', msg: 'Money factor equals ' + q.mfApr.toFixed(1) + '% APR. That is loan-shark territory for a lease.' });
@@ -656,6 +704,13 @@ export function scoreFinance(i) {
     feeScore -= 30;
     flags.push({ level: 'warn', msg: '$' + i.addons + ' in dealer add-ons. Nitrogen, etch, protection packages: decline them.' });
   }
+  if ((i.down || 0) > 0.30 * i.price) {
+    feeScore -= 35;
+    flags.push({ level: 'critical', msg: 'This payment only works because you are putting a massive amount down ($' + Math.round(i.down).toLocaleString('en-US') + '). The car is not actually cheap; the cash is hiding the real cost.' });
+  } else if ((i.down || 0) > 0.20 * i.price) {
+    feeScore -= 18;
+    flags.push({ level: 'warn', msg: 'Large down payment: your monthly looks low because you prepaid a big chunk of the car.' });
+  }
   feeScore = Math.max(0, feeScore);
   components.push({
     key: 'fees', label: 'Fees and add-ons', score: feeScore, weight: 5,
@@ -663,6 +718,9 @@ export function scoreFinance(i) {
   });
 
   let critical = false;
+  if ((i.down || 0) > 0.30 * i.price) {
+    critical = true;
+  }
   if (q.aprDelta >= 4) {
     critical = true;
     flags.push({ level: 'critical', msg: 'APR is 4+ points above the average for your credit tier. Get outside financing (credit union) before signing.' });
