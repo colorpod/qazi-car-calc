@@ -193,6 +193,8 @@ const PAGE_HTML = `<!doctype html>
   .wizard-summary .muted { color: var(--muted); font-size: 12px; line-height: 1.4; }
   .target-range { width: 100%; accent-color: var(--accent); padding: 0 !important; border: none !important; margin: 12px 0 3px; }
   .range-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+  .finance-slider { margin: 10px 0 0; background: #0f1115; border: 1px solid var(--line); border-radius: 12px; padding: 11px; }
+  .finance-slider .muted { color: var(--muted); font-size: 12px; line-height: 1.35; }
   .wizard-nav { display: flex; gap: 8px; margin-top: 12px; }
   .wizard-nav .back-btn { flex: 0.72; padding: 14px; border-radius: 13px; border: 1px solid var(--line); background: var(--card2); color: var(--muted); font-size: 14px; font-weight: 850; cursor: pointer; }
   .start-btn { flex: 1.4; width: 100%; padding: 15px; border-radius: 13px; border: none; background: var(--accent); color: #14100b; font-size: 16px; font-weight: 950; cursor: pointer; }
@@ -351,7 +353,12 @@ const PAGE_HTML = `<!doctype html>
             <div class="level" data-level="aggressive"><div class="t">Aggressive</div><div class="s">Car guy</div></div>
           </div>
           <input type="hidden" id="f_level" value="">
-          <div class="field" style="margin:12px 0 9px"><label>Target monthly payment $</label><input id="f_target" type="number" step="10" placeholder="auto from level above"></div>
+          <div class="finance-slider hidden" id="f_target_panel">
+            <div class="muted" id="f_range_note">Pick a comfort level, then slide lower or higher.</div>
+            <input class="target-range" id="f_target_range" type="range" min="0" max="2000" step="10" value="0">
+            <div class="range-labels"><span>lower</span><span>tier target</span><span>higher</span></div>
+          </div>
+          <div class="field" style="margin:12px 0 9px"><label>Target monthly payment $</label><input id="f_target" type="number" inputmode="numeric" step="10" placeholder="auto from level above"></div>
           <div class="field" style="margin:0"><label>Then solve for</label><select id="f_solvefor">
             <option value="down">Find down payment</option>
             <option value="price">Find max car price</option>
@@ -477,16 +484,26 @@ function applyAffordability() {
     nodes[i].classList.toggle('on', nodes[i].getAttribute('data-level') === level);
   }
   var budget = 0, target = null, overBudget = false;
+  var manualTarget = $('f_target').getAttribute('data-manual') === '1';
   if (income > 0 && level) {
     budget = Math.round(income * AFFORDABILITY[level].pct);
     target = affordabilityPayment(income, level, existing);
-    var manualTarget = $('f_target').getAttribute('data-manual') === '1';
+    $('f_target_panel').classList.remove('hidden');
     if (target > 0) {
       if (!manualTarget) $('f_target').value = target;
+      var currentTarget = num('f_target') > 0 ? num('f_target') : target;
+      var rangeMax = Math.max(1000, Math.round(Math.max(target, currentTarget, 500) * 1.65 / 10) * 10);
+      $('f_target_range').max = rangeMax;
+      $('f_target_range').value = currentTarget;
+      $('f_range_note').textContent = AFFORDABILITY[level].label + ' starts at ' + money(target) + '/mo after current cars. Slide it lower or higher.';
     } else {
       overBudget = true;
       if (!manualTarget) $('f_target').value = '';
+      $('f_target_range').value = 0;
+      $('f_range_note').textContent = 'Current car costs already use this budget. Pick a higher appetite or trim costs.';
     }
+  } else {
+    $('f_target_panel').classList.add('hidden');
   }
   return { income: income, existing: existing, level: level, budget: budget, target: target, overBudget: overBudget };
 }
@@ -1268,6 +1285,11 @@ $('f_used').addEventListener('click', function () { setUsed(true); recalc(); });
 
 // A manually typed payment overrides the affordability level (clear before recalc).
 $('f_target').addEventListener('input', function () { $('f_level').value = ''; $('f_target').removeAttribute('data-manual'); });
+$('f_target_range').addEventListener('input', function () {
+  $('f_target').value = this.value;
+  $('f_target').setAttribute('data-manual', '1');
+  recalc();
+});
 
 var all = LEASE_IDS.concat(FIN_IDS);
 for (var i = 0; i < all.length; i++) {
@@ -1279,7 +1301,9 @@ var levelEls = document.querySelectorAll('#pane-finance .level');
 for (var li = 0; li < levelEls.length; li++) {
   levelEls[li].addEventListener('click', function () {
     $('f_level').value = this.getAttribute('data-level');
+    $('f_target').removeAttribute('data-manual');
     recalc();
+    $('f_target_panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 }
 // Manual edits stop the ZIP/benchmark auto-fill from overwriting.
@@ -1315,7 +1339,7 @@ $('l_reset').addEventListener('click', function () {
 $('f_example').addEventListener('click', function () {
   setUsed(true);
   $('f_zip').value = '92618'; $('l_zip').value = '92618';
-  $('f_vehicle').value = ''; $('f_income').value = ''; $('f_existing').value = ''; $('f_level').value = ''; $('f_target').value = '';
+  $('f_vehicle').value = ''; $('f_income').value = ''; $('f_existing').value = ''; $('f_level').value = ''; $('f_target').value = ''; $('f_target').removeAttribute('data-manual');
   $('f_msrp').value = 22000; $('f_price').value = 20000; $('f_rebates').value = 0;
   $('f_trade').value = 0; $('f_down').value = 3000; $('f_apr').value = 8.4;
   $('f_term').value = 60; $('f_tier').value = 'prime'; $('f_addons').value = 0;
@@ -1326,6 +1350,7 @@ $('f_example').addEventListener('click', function () {
 });
 $('f_reset').addEventListener('click', function () {
   for (var i = 0; i < FIN_IDS.length; i++) $(FIN_IDS[i]).value = '';
+  $('f_target').removeAttribute('data-manual');
   setUsed(true);
   $('f_zip').value = '92618'; $('f_rebates').value = 0; $('f_trade').value = 0;
   $('f_down').value = 0; $('f_addons').value = 0; $('f_doc').value = 85; $('f_tax').value = 7.75;
