@@ -185,6 +185,14 @@ const PAGE_HTML = `<!doctype html>
   .choice { padding: 12px 9px; border-radius: 12px; border: 1px solid var(--line); background: #171a21; color: var(--text); cursor: pointer; text-align: center; font-weight: 850; font-size: 13px; }
   .choice small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 650; }
   .choice.on { border-color: var(--accent); background: rgba(244,129,32,0.18); color: var(--accent); }
+  .recent-queries { margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .recent-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 12px; font-weight: 900; color: var(--text); }
+  .recent-title small { color: var(--muted); font-weight: 650; }
+  .recent-list { display: grid; grid-template-columns: 1fr; gap: 7px; }
+  .recent-query { width: 100%; text-align: left; padding: 10px 11px; border-radius: 11px; border: 1px solid var(--line); background: #10131a; color: var(--text); cursor: pointer; }
+  .recent-query:active { filter: brightness(0.92); }
+  .recent-main { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 850; }
+  .recent-meta { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.35; }
   .wizard input, .wizard select { width: 100%; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: var(--text); font-size: 16px; }
   .wizard input:focus, .wizard select:focus { outline: none; border-color: var(--accent); }
   .wizard .row { margin-bottom: 0; }
@@ -228,6 +236,10 @@ const PAGE_HTML = `<!doctype html>
           <button class="choice on" type="button" data-deal="lease">Lease<small>new car</small></button>
           <button class="choice" type="button" data-deal="new">Buy new<small>finance</small></button>
           <button class="choice" type="button" data-deal="used">Buy used<small>finance</small></button>
+        </div>
+        <div class="recent-queries hidden" id="recent_queries">
+          <div class="recent-title">Recent Queries <small>tap to resume</small></div>
+          <div class="recent-list" id="recent_queries_list"></div>
         </div>
       </div>
       <div class="wstep" data-step="1">
@@ -1130,6 +1142,131 @@ var WIZ_LEVEL_LABELS = { conservative: 'Conservative', comfortable: 'Comfortable
 var wizardCompleted = false;
 var wizStep = 0;
 var WIZ_TOTAL_STEPS = 8;
+var RECENT_QUERY_KEY = 'qcc_recent_queries_v1';
+var RECENT_QUERY_LIMIT = 4;
+
+function readRecentQueries() {
+  try {
+    var raw = localStorage.getItem(RECENT_QUERY_KEY);
+    var list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter(function (q) { return q && q.v; }).slice(0, RECENT_QUERY_LIMIT) : [];
+  } catch (e) { return []; }
+}
+
+function writeRecentQueries(list) {
+  try { localStorage.setItem(RECENT_QUERY_KEY, JSON.stringify(list.slice(0, RECENT_QUERY_LIMIT))); } catch (e) {}
+}
+
+function currentWizardQuery() {
+  return {
+    ts: Date.now(),
+    v: {
+      deal: wizDeal,
+      level: wizLevel,
+      income: $('wiz_income').value,
+      existing: $('wiz_existing').value,
+      credit: $('wiz_credit').value,
+      target: $('wiz_target').value,
+      down: $('wiz_down').value,
+      zip: $('wiz_zip').value,
+      vehicle: $('wiz_vehicle').value,
+    },
+  };
+}
+
+function queryKey(q) {
+  var v = q.v || {};
+  return [v.deal, v.level, v.income, v.existing, v.credit, v.target, v.down, v.zip, v.vehicle].join('|');
+}
+
+function vehicleNameFromIndex(x) {
+  if (x === '' || x == null || !VEHICLES[+x]) return '';
+  var v = VEHICLES[+x];
+  return v.mk + ' ' + v.md;
+}
+
+function saveRecentQuery() {
+  var q = currentWizardQuery();
+  var v = q.v;
+  if (!v.deal || (!v.income && !v.target && !v.down && !v.vehicle)) return;
+  var key = queryKey(q);
+  var list = readRecentQueries().filter(function (item) { return queryKey(item) !== key; });
+  list.unshift(q);
+  writeRecentQueries(list);
+  renderRecentQueries();
+}
+
+function dealLabel(d) {
+  return d === 'lease' ? 'Lease' : (d === 'new' ? 'Buy new' : 'Buy used');
+}
+
+function recentQueryTitle(q) {
+  var v = q.v || {};
+  var target = parseFloat(v.target || '0') || 0;
+  var tierTarget = 0;
+  if (!target && parseMoneyValue(v.income) > 0) tierTarget = affordabilityPayment(parseMoneyValue(v.income), v.level || 'comfortable', parseMoneyValue(v.existing));
+  var pay = target || tierTarget;
+  return dealLabel(v.deal) + (pay > 0 ? ' · ' + money(pay) + '/mo' : '') + (v.down ? ' · ' + money(parseMoneyValue(v.down)) + ' down' : '');
+}
+
+function parseMoneyValue(x) {
+  var n = Number(String(x || '').replace(/[^0-9.-]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+
+function recentQueryMeta(q) {
+  var v = q.v || {};
+  var bits = [];
+  if (v.income) bits.push('income ' + money(parseMoneyValue(v.income)));
+  if (v.credit) bits.push('credit ' + v.credit);
+  if (v.zip) bits.push('ZIP ' + v.zip);
+  if (v.vehicle) bits.push(vehicleNameFromIndex(v.vehicle));
+  return bits.join(' · ');
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (ch) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch];
+  });
+}
+
+function applyRecentQuery(q) {
+  var v = q.v || {};
+  wizDeal = v.deal || 'lease';
+  wizLevel = v.level || 'comfortable';
+  $('wiz_income').value = v.income || '';
+  $('wiz_existing').value = v.existing || '';
+  $('wiz_credit').value = v.credit || '';
+  $('wiz_target').value = v.target || '';
+  $('wiz_down').value = v.down || '';
+  $('wiz_zip').value = v.zip || '92618';
+  $('wiz_vehicle').value = v.vehicle || '';
+  wizStep = 7;
+  $('wizard-card').classList.remove('hidden');
+  $('app_wrap').classList.add('prewizard');
+  renderWizardStep();
+  updateWizard();
+}
+
+function renderRecentQueries() {
+  var box = $('recent_queries');
+  var listEl = $('recent_queries_list');
+  if (!box || !listEl) return;
+  var list = readRecentQueries();
+  box.classList.toggle('hidden', list.length === 0);
+  listEl.innerHTML = '';
+  for (var i = 0; i < list.length; i++) {
+    (function (q) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'recent-query';
+      btn.innerHTML = '<div class="recent-main"><span>' + escapeHtml(recentQueryTitle(q)) + '</span><span>Resume</span></div>' +
+        '<div class="recent-meta">' + escapeHtml(recentQueryMeta(q) || 'Saved quote setup') + '</div>';
+      btn.addEventListener('click', function () { applyRecentQuery(q); });
+      listEl.appendChild(btn);
+    })(list[i]);
+  }
+}
 
 function creditBandFromScore(score) {
   if (score >= 800) return 'perfect';
@@ -1261,6 +1398,7 @@ function runWizard() {
   var down = num('wiz_down');
   var target = selectedWizardTarget();
   var manualTarget = hasWizardManualTarget();
+  saveRecentQuery();
   $('l_zip').value = zip; $('f_zip').value = zip;
   if (wizDeal === 'lease') {
     setMode('lease');
@@ -1305,6 +1443,7 @@ function renderWizardStep() {
   $('wiz_progress').style.width = Math.round(((wizStep + 1) / WIZ_TOTAL_STEPS) * 100) + '%';
   $('wiz_back').disabled = wizStep === 0;
   $('wiz_next').textContent = wizStep === WIZ_TOTAL_STEPS - 1 ? 'Start — fill it out' : 'Next';
+  if (wizStep === 0) renderRecentQueries();
 }
 
 function advanceWizard() {
@@ -1328,6 +1467,7 @@ function startNewWizard() {
   try { localStorage.removeItem('qcc_v2'); } catch (e) {}
   $('wizard-card').classList.remove('hidden');
   $('app_wrap').classList.add('prewizard');
+  renderRecentQueries();
   renderWizardStep();
   updateWizard();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1353,6 +1493,7 @@ function wireWizard() {
     this.classList.toggle('on', !hide);
     this.textContent = hide ? 'Show' : 'Hide';
   });
+  renderRecentQueries();
   renderWizardStep();
   updateWizard();
 }
