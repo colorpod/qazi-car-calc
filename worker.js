@@ -160,7 +160,8 @@ const PAGE_HTML = `<!doctype html>
   .seg button.on { background: var(--accent); color: #14100b; }
 
   /* Launch concierge */
-  .wizard { background: radial-gradient(circle at 15% 0%, rgba(244,129,32,0.24), transparent 34%), linear-gradient(160deg, #20242e, #151820); border: 1px solid rgba(244,129,32,0.42); box-shadow: 0 18px 44px rgba(0,0,0,0.28); }
+  .prewizard .tabs, .prewizard .grid, .prewizard .foot { display: none; }
+  .wizard { background: #151820; border: 1px solid rgba(244,129,32,0.42); box-shadow: 0 18px 44px rgba(0,0,0,0.28); }
   .wizard-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
   .wizard-kicker { color: var(--accent); font-size: 11px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
   .wizard-title { font-size: 22px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.02; }
@@ -176,13 +177,13 @@ const PAGE_HTML = `<!doctype html>
   .wlabel small { color: var(--muted); font-weight: 600; }
   .choicegrid { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .choicegrid.three { grid-template-columns: 1fr 1fr 1fr; }
-  .choice { padding: 12px 9px; border-radius: 12px; border: 1px solid var(--line); background: rgba(23,26,33,0.78); color: var(--text); cursor: pointer; text-align: center; font-weight: 850; font-size: 13px; }
+  .choice { padding: 12px 9px; border-radius: 12px; border: 1px solid var(--line); background: #171a21; color: var(--text); cursor: pointer; text-align: center; font-weight: 850; font-size: 13px; }
   .choice small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 650; }
   .choice.on { border-color: var(--accent); background: rgba(244,129,32,0.18); color: var(--accent); }
   .wizard input, .wizard select { width: 100%; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: var(--text); font-size: 16px; }
   .wizard input:focus, .wizard select:focus { outline: none; border-color: var(--accent); }
   .wizard .row { margin-bottom: 0; }
-  .wizard-summary { margin-top: 13px; background: rgba(15,17,21,0.54); border: 1px solid var(--line); border-radius: 13px; padding: 12px; }
+  .wizard-summary { margin-top: 13px; background: #0f1115; border: 1px solid var(--line); border-radius: 13px; padding: 12px; }
   .wizard-summary .big { font-size: 24px; color: var(--accent); font-weight: 950; letter-spacing: -0.02em; }
   .wizard-summary .muted { color: var(--muted); font-size: 12px; line-height: 1.4; }
   .wizard-nav { display: flex; gap: 8px; margin-top: 12px; }
@@ -194,7 +195,7 @@ const PAGE_HTML = `<!doctype html>
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap prewizard" id="app_wrap">
   <div class="brand"><img class="brand-logo" src="/icon.png" alt="Car Deal Gauge" width="46" height="46"><h1>Car Deal Gauge</h1></div>
   <p class="sub">Score any car deal 0-100. Enter your income and the dealer's numbers; tax, DMV fees, and market APR auto-fill from your ZIP and credit.</p>
 
@@ -463,8 +464,13 @@ function applyAffordability() {
   if (income > 0 && level) {
     budget = Math.round(income * AFFORDABILITY[level].pct);
     target = affordabilityPayment(income, level, existing);
-    if (target > 0) { $('f_target').value = target; }
-    else { overBudget = true; $('f_target').value = ''; }
+    var manualTarget = $('f_target').getAttribute('data-manual') === '1';
+    if (target > 0) {
+      if (!manualTarget) $('f_target').value = target;
+    } else {
+      overBudget = true;
+      if (!manualTarget) $('f_target').value = '';
+    }
   }
   return { income: income, existing: existing, level: level, budget: budget, target: target, overBudget: overBudget };
 }
@@ -963,6 +969,7 @@ function recalc() {
 var wizDeal = 'lease';
 var wizLevel = 'comfortable';
 var WIZ_LEVEL_LABELS = { conservative: 'Conservative', comfortable: 'Comfortable', aggressive: 'Aggressive' };
+var wizardCompleted = false;
 var wizStep = 0;
 var WIZ_TOTAL_STEPS = 8;
 
@@ -980,6 +987,8 @@ function aprFromCredit(score, used, term) {
   var best = bestBankApr(used, tier, term);
   return { tier: tier, avg: avg, best: best };
 }
+
+function hasWizardManualTarget() { return $('wiz_target').value.trim() !== '' && num('wiz_target') > 0; }
 
 function selectedWizardTarget() {
   var manual = num('wiz_target');
@@ -1004,7 +1013,8 @@ function updateWizard() {
   var existing = parseMoney('wiz_existing');
   var score = num('wiz_credit');
   var target = selectedWizardTarget();
-  $('wiz_target_big').textContent = target > 0 ? money(target) + '/mo' : '—';
+  var manualTarget = hasWizardManualTarget();
+  $('wiz_target_big').textContent = target > 0 ? money(target) + '/mo' + (manualTarget ? ' custom' : '') : '—';
   var used = wizDeal === 'used';
   var isFinance = wizDeal !== 'lease';
   var note = '';
@@ -1012,6 +1022,7 @@ function updateWizard() {
     var rawBudget = Math.round(income * AFFORDABILITY[wizLevel].pct);
     note += WIZ_LEVEL_LABELS[wizLevel] + ' is ' + Math.round(AFFORDABILITY[wizLevel].pct * 100) + '% of gross monthly income (' + money(rawBudget) + '/mo). ';
     if (existing > 0) note += 'Current cars use ' + money(existing) + '/mo, leaving ' + (target > 0 ? money(target) : '$0') + '/mo. ';
+    if (manualTarget) note += 'Using your custom payment, not the tier default. ';
   } else {
     note += 'Enter income to calculate conservative / comfortable / aggressive payment targets. ';
   }
@@ -1060,6 +1071,7 @@ function runWizard() {
   var zip = $('wiz_zip').value.trim() || '92618';
   var down = num('wiz_down');
   var target = selectedWizardTarget();
+  var manualTarget = hasWizardManualTarget();
   $('l_zip').value = zip; $('f_zip').value = zip;
   if (wizDeal === 'lease') {
     setMode('lease');
@@ -1076,6 +1088,8 @@ function runWizard() {
     $('f_existing').value = existing > 0 ? existing : '';
     $('f_level').value = wizLevel;
     $('f_target').value = target > 0 ? target : '';
+    if (manualTarget) $('f_target').setAttribute('data-manual', '1');
+    else $('f_target').removeAttribute('data-manual');
     $('f_solvefor').value = down > 0 ? 'price' : 'down';
     $('f_down').value = down > 0 ? down : 0;
     if (score > 0) {
@@ -1088,6 +1102,9 @@ function runWizard() {
     $('f_zipauto').checked = true;
     $('f_tax_on').checked = true; $('f_reg_on').checked = true;
   }
+  wizardCompleted = true;
+  $('app_wrap').classList.remove('prewizard');
+  $('wizard-card').classList.add('hidden');
   recalc();
   document.getElementById('inputs-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -1194,7 +1211,7 @@ $('f_new').addEventListener('click', function () { setUsed(false); recalc(); });
 $('f_used').addEventListener('click', function () { setUsed(true); recalc(); });
 
 // A manually typed payment overrides the affordability level (clear before recalc).
-$('f_target').addEventListener('input', function () { $('f_level').value = ''; });
+$('f_target').addEventListener('input', function () { $('f_level').value = ''; $('f_target').removeAttribute('data-manual'); });
 
 var all = LEASE_IDS.concat(FIN_IDS);
 for (var i = 0; i < all.length; i++) {
