@@ -168,7 +168,10 @@ const PAGE_HTML = `<!doctype html>
   .wizard-toggle { flex: none; padding: 9px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card2); color: var(--muted); font-size: 12px; font-weight: 800; cursor: pointer; }
   .wizard-toggle.on { background: rgba(244,129,32,0.16); border-color: var(--accent); color: var(--accent); }
   .wizard-body.hidden { display: none; }
-  .wstep { margin-top: 13px; }
+  .wprogress { height: 6px; background: rgba(15,17,21,0.72); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; margin: 4px 0 14px; }
+  .wprogress i { display: block; height: 100%; width: 14%; background: var(--accent); border-radius: 999px; transition: width 0.18s ease; }
+  .wstep { display: none; margin-top: 13px; min-height: 226px; }
+  .wstep.active { display: block; }
   .wlabel { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text); font-size: 13px; font-weight: 800; margin-bottom: 8px; }
   .wlabel small { color: var(--muted); font-weight: 600; }
   .choicegrid { display: grid; grid-template-columns: 1fr; gap: 8px; }
@@ -182,9 +185,11 @@ const PAGE_HTML = `<!doctype html>
   .wizard-summary { margin-top: 13px; background: rgba(15,17,21,0.54); border: 1px solid var(--line); border-radius: 13px; padding: 12px; }
   .wizard-summary .big { font-size: 24px; color: var(--accent); font-weight: 950; letter-spacing: -0.02em; }
   .wizard-summary .muted { color: var(--muted); font-size: 12px; line-height: 1.4; }
-  .start-btn { width: 100%; margin-top: 12px; padding: 15px; border-radius: 13px; border: none; background: var(--accent); color: #14100b; font-size: 16px; font-weight: 950; cursor: pointer; }
-  .start-btn:active { filter: brightness(0.92); }
-  .start-btn:disabled { opacity: 0.45; cursor: default; background: var(--card2); color: var(--muted); }
+  .wizard-nav { display: flex; gap: 8px; margin-top: 12px; }
+  .wizard-nav .back-btn { flex: 0.72; padding: 14px; border-radius: 13px; border: 1px solid var(--line); background: var(--card2); color: var(--muted); font-size: 14px; font-weight: 850; cursor: pointer; }
+  .start-btn { flex: 1.4; width: 100%; padding: 15px; border-radius: 13px; border: none; background: var(--accent); color: #14100b; font-size: 16px; font-weight: 950; cursor: pointer; }
+  .start-btn:active, .wizard-nav .back-btn:active { filter: brightness(0.92); }
+  .start-btn:disabled, .wizard-nav .back-btn:disabled { opacity: 0.45; cursor: default; background: var(--card2); color: var(--muted); }
   .hidden { display: none; }
 </style>
 </head>
@@ -203,7 +208,8 @@ const PAGE_HTML = `<!doctype html>
       <button class="wizard-toggle on" id="wiz_toggle" type="button">Hide</button>
     </div>
     <div class="wizard-body" id="wiz_body">
-      <div class="wstep">
+      <div class="wprogress"><i id="wiz_progress"></i></div>
+      <div class="wstep active" data-step="0">
         <div class="wlabel">1. What are you trying to do?</div>
         <div class="choicegrid three" id="wiz_deal_choices">
           <button class="choice on" type="button" data-deal="lease">Lease<small>new car</small></button>
@@ -211,37 +217,48 @@ const PAGE_HTML = `<!doctype html>
           <button class="choice" type="button" data-deal="used">Buy used<small>finance</small></button>
         </div>
       </div>
-      <div class="wstep">
-        <div class="row">
-          <div class="field"><label>Monthly gross income</label><input id="wiz_income" type="text" inputmode="numeric" placeholder="$10,000"></div>
-          <div class="field"><label>Credit score</label><input id="wiz_credit" type="number" inputmode="numeric" placeholder="720"></div>
-        </div>
+      <div class="wstep" data-step="1">
+        <div class="wlabel">2. What's your monthly gross income?</div>
+        <div class="field"><input id="wiz_income" type="text" inputmode="numeric" placeholder="$10,000"></div>
       </div>
-      <div class="wstep">
-        <div class="wlabel">2. What monthly payment feels right? <small>customizable</small></div>
+      <div class="wstep" data-step="2">
+        <div class="wlabel">3. How much are you already paying for cars?</div>
+        <div class="field"><input id="wiz_existing" type="text" inputmode="numeric" placeholder="0 — include payments + insurance"><div class="hint">This comes off the budget first. Three other cars changes the answer.</div></div>
+      </div>
+      <div class="wstep" data-step="3">
+        <div class="wlabel">4. What's your credit score?</div>
+        <div class="field"><input id="wiz_credit" type="number" inputmode="numeric" placeholder="720"></div>
+      </div>
+      <div class="wstep" data-step="4">
+        <div class="wlabel">5. What monthly payment feels right? <small>customizable</small></div>
         <div class="choicegrid three" id="wiz_level_choices">
           <button class="choice" type="button" data-level="conservative">Conservative<small>safe</small></button>
           <button class="choice on" type="button" data-level="comfortable">Comfortable<small>balanced</small></button>
           <button class="choice" type="button" data-level="aggressive">Aggressive<small>car guy</small></button>
         </div>
         <div class="wizard-summary">
-          <div class="muted">Suggested target payment</div>
+          <div class="muted">Suggested target payment after current cars</div>
           <div class="big" id="wiz_target_big">—</div>
-          <div class="muted" id="wiz_avg_note">Enter income + credit to see the target and market average.</div>
+          <div class="muted" id="wiz_avg_note">Enter income, current car costs, and credit to see the target and market average.</div>
           <div class="field" style="margin:10px 0 0"><label>Want less or more? Override target payment</label><input id="wiz_target" type="number" step="10" placeholder="optional"></div>
         </div>
       </div>
-      <div class="wstep">
-        <div class="row">
-          <div class="field"><label>Comfortable down payment</label><input id="wiz_down" type="number" step="100" placeholder="0 or skip"></div>
-          <div class="field"><label>ZIP code</label><input id="wiz_zip" type="text" inputmode="numeric" maxlength="5" placeholder="92618"></div>
-        </div>
+      <div class="wstep" data-step="5">
+        <div class="wlabel">6. What are you comfortable putting down?</div>
+        <div class="field"><input id="wiz_down" type="number" step="100" placeholder="0 or skip"></div>
       </div>
-      <div class="wstep">
-        <div class="wlabel">3. Car <small>popular makes/models built in</small></div>
+      <div class="wstep" data-step="6">
+        <div class="wlabel">7. What's your ZIP code?</div>
+        <div class="field"><input id="wiz_zip" type="text" inputmode="numeric" maxlength="5" placeholder="92618"><div class="hint">ZIP sets tax, DMV estimate, and doc-fee rules.</div></div>
+      </div>
+      <div class="wstep" data-step="7">
+        <div class="wlabel">8. Pick a car <small>or skip</small></div>
         <div class="field"><select id="wiz_vehicle"><option value="">Pick make / model — or skip</option></select></div>
       </div>
-      <button class="start-btn" id="wiz_start" type="button">Start — fill it out</button>
+      <div class="wizard-nav">
+        <button class="back-btn" id="wiz_back" type="button">Back</button>
+        <button class="start-btn" id="wiz_next" type="button">Next</button>
+      </div>
     </div>
   </div>
 
@@ -946,6 +963,8 @@ function recalc() {
 var wizDeal = 'lease';
 var wizLevel = 'comfortable';
 var WIZ_LEVEL_LABELS = { conservative: 'Conservative', comfortable: 'Comfortable', aggressive: 'Aggressive' };
+var wizStep = 0;
+var WIZ_TOTAL_STEPS = 8;
 
 function creditTierFromScore(score) {
   if (score >= 781) return 'superprime';
@@ -966,8 +985,9 @@ function selectedWizardTarget() {
   var manual = num('wiz_target');
   if (manual > 0) return manual;
   var income = parseMoney('wiz_income');
+  var existing = parseMoney('wiz_existing');
   if (income <= 0) return 0;
-  return affordabilityPayment(income, wizLevel, 0);
+  return affordabilityPayment(income, wizLevel, existing);
 }
 
 function updateWizardChoices(rootId, attr, val) {
@@ -981,6 +1001,7 @@ function updateWizard() {
   updateWizardChoices('wiz_deal_choices', 'data-deal', wizDeal);
   updateWizardChoices('wiz_level_choices', 'data-level', wizLevel);
   var income = parseMoney('wiz_income');
+  var existing = parseMoney('wiz_existing');
   var score = num('wiz_credit');
   var target = selectedWizardTarget();
   $('wiz_target_big').textContent = target > 0 ? money(target) + '/mo' : '—';
@@ -989,7 +1010,8 @@ function updateWizard() {
   var note = '';
   if (income > 0) {
     var rawBudget = Math.round(income * AFFORDABILITY[wizLevel].pct);
-    note += WIZ_LEVEL_LABELS[wizLevel] + ' is ' + Math.round(AFFORDABILITY[wizLevel].pct * 100) + '% of gross monthly income, about ' + money(rawBudget) + '/mo. ';
+    note += WIZ_LEVEL_LABELS[wizLevel] + ' is ' + Math.round(AFFORDABILITY[wizLevel].pct * 100) + '% of gross monthly income (' + money(rawBudget) + '/mo). ';
+    if (existing > 0) note += 'Current cars use ' + money(existing) + '/mo, leaving ' + (target > 0 ? money(target) : '$0') + '/mo. ';
   } else {
     note += 'Enter income to calculate conservative / comfortable / aggressive payment targets. ';
   }
@@ -1034,6 +1056,7 @@ function fillFromWizardVehicle(prefix) {
 function runWizard() {
   var income = parseMoney('wiz_income');
   var score = num('wiz_credit');
+  var existing = parseMoney('wiz_existing');
   var zip = $('wiz_zip').value.trim() || '92618';
   var down = num('wiz_down');
   var target = selectedWizardTarget();
@@ -1050,7 +1073,7 @@ function runWizard() {
     setMode('finance');
     setUsed(wizDeal === 'used');
     $('f_income').value = income > 0 ? income : '';
-    $('f_existing').value = '';
+    $('f_existing').value = existing > 0 ? existing : '';
     $('f_level').value = wizLevel;
     $('f_target').value = target > 0 ? target : '';
     $('f_solvefor').value = down > 0 ? 'price' : 'down';
@@ -1069,24 +1092,43 @@ function runWizard() {
   document.getElementById('inputs-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function renderWizardStep() {
+  var steps = document.querySelectorAll('#wiz_body .wstep');
+  for (var i = 0; i < steps.length; i++) steps[i].classList.toggle('active', i === wizStep);
+  $('wiz_progress').style.width = Math.round(((wizStep + 1) / WIZ_TOTAL_STEPS) * 100) + '%';
+  $('wiz_back').disabled = wizStep === 0;
+  $('wiz_next').textContent = wizStep === WIZ_TOTAL_STEPS - 1 ? 'Start — fill it out' : 'Next';
+}
+
+function advanceWizard() {
+  if (wizStep < WIZ_TOTAL_STEPS - 1) {
+    wizStep += 1;
+    renderWizardStep();
+    updateWizard();
+  } else {
+    runWizard();
+  }
+}
+
 function wireWizard() {
   populateVehicles('wiz_vehicle');
   $('wiz_zip').value = $('f_zip').value || $('l_zip').value || '92618';
   var dnodes = document.querySelectorAll('#wiz_deal_choices .choice');
-  for (var i = 0; i < dnodes.length; i++) dnodes[i].addEventListener('click', function () { wizDeal = this.getAttribute('data-deal'); updateWizard(); });
+  for (var i = 0; i < dnodes.length; i++) dnodes[i].addEventListener('click', function () { wizDeal = this.getAttribute('data-deal'); updateWizard(); advanceWizard(); });
   var lnodes = document.querySelectorAll('#wiz_level_choices .choice');
   for (var j = 0; j < lnodes.length; j++) lnodes[j].addEventListener('click', function () { wizLevel = this.getAttribute('data-level'); $('wiz_target').value = ''; updateWizard(); });
-  ['wiz_income','wiz_credit','wiz_target','wiz_down','wiz_zip','wiz_vehicle'].forEach(function (id) { $(id).addEventListener('input', updateWizard); $(id).addEventListener('change', updateWizard); });
-  $('wiz_start').addEventListener('click', runWizard);
+  ['wiz_income','wiz_existing','wiz_credit','wiz_target','wiz_down','wiz_zip','wiz_vehicle'].forEach(function (id) { $(id).addEventListener('input', updateWizard); $(id).addEventListener('change', updateWizard); });
+  $('wiz_next').addEventListener('click', advanceWizard);
+  $('wiz_back').addEventListener('click', function () { if (wizStep > 0) { wizStep -= 1; renderWizardStep(); updateWizard(); } });
   $('wiz_toggle').addEventListener('click', function () {
     var hide = !$('wiz_body').classList.contains('hidden');
     $('wiz_body').classList.toggle('hidden', hide);
     this.classList.toggle('on', !hide);
     this.textContent = hide ? 'Show' : 'Hide';
   });
+  renderWizardStep();
   updateWizard();
 }
-
 // ------------------------------------------------------------- wiring ----
 var LEASE_IDS = ['l_vehicle','l_zip','l_target','l_solvefor','l_msrp','l_price','l_rebates','l_down','l_mf','l_residual','l_term','l_miles','l_acq','l_doc','l_reg','l_tax'];
 var FIN_IDS = ['f_vehicle','f_income','f_existing','f_level','f_target','f_solvefor','f_zip','f_msrp','f_price','f_apr','f_term','f_tier','f_bench','f_down','f_trade','f_rebates','f_addons','f_doc','f_reg','f_tax','f_exit'];
