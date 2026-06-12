@@ -195,6 +195,9 @@ const PAGE_HTML = `<!doctype html>
   .range-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
   .finance-slider { margin: 10px 0 0; background: #0f1115; border: 1px solid var(--line); border-radius: 12px; padding: 11px; }
   .finance-slider .muted { color: var(--muted); font-size: 12px; line-height: 1.35; }
+  .taxreg-readout { margin: 10px 0 2px; background: #0f1115; border: 1px solid var(--line); border-radius: 12px; padding: 11px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .taxreg-readout b { color: var(--accent); font-size: 15px; }
+  .taxreg-readout .mini { display: block; margin-top: 4px; color: var(--muted); }
   .wizard-nav { display: flex; gap: 8px; margin-top: 12px; }
   .wizard-nav .back-btn { flex: 0.72; padding: 14px; border-radius: 13px; border: 1px solid var(--line); background: var(--card2); color: var(--muted); font-size: 14px; font-weight: 850; cursor: pointer; }
   .start-btn { flex: 1.4; width: 100%; padding: 15px; border-radius: 13px; border: none; background: var(--accent); color: #14100b; font-size: 16px; font-weight: 950; cursor: pointer; }
@@ -336,6 +339,7 @@ const PAGE_HTML = `<!doctype html>
           <div class="field"><label class="tlabel"><input id="l_reg_on" type="checkbox" checked> Registration &amp; DMV fees $</label><input id="l_reg" type="number" step="5" value="0"><div class="hint">Title, plates, VLF.</div></div>
         </div>
         <div class="check"><input id="l_zipauto" type="checkbox" checked><label for="l_zipauto">Auto-fill tax + DMV fees from ZIP</label></div>
+        <div class="taxreg-readout" id="l_taxreg_readout">Tax + registration add-on shows here once a deal is entered.</div>
         <div class="btns">
           <button class="btn" id="l_example">Load example</button>
           <button class="btn" id="l_reset">Reset</button>
@@ -411,6 +415,7 @@ const PAGE_HTML = `<!doctype html>
           <div class="field"><label>Sell / pay off after (mo)</label><input id="f_exit" type="number" step="6" placeholder="e.g. 24"><div class="hint">Interest by then vs full loan.</div></div>
         </div>
         <div class="check"><input id="f_zipauto" type="checkbox" checked><label for="f_zipauto">Auto-fill tax + DMV fees from ZIP</label></div>
+        <div class="taxreg-readout" id="f_taxreg_readout">Tax + registration add-on shows here once a price is entered.</div>
         <div class="check"><input id="f_bench_auto" type="checkbox" checked><label for="f_bench_auto">Auto-fill benchmark APR from credit tier</label></div>
         <div class="btns">
           <button class="btn" id="f_example">Load example</button>
@@ -473,6 +478,7 @@ function money2(x) {
 function num(id) { var v = parseFloat($(id).value); return isFinite(v) ? v : 0; }
 function numOr(id, dflt) { var v = parseFloat($(id).value); return isFinite(v) ? v : dflt; }
 function parseMoney(id) { var v = ($(id).value || '').replace(/[^0-9.]/g, ''); var n = parseFloat(v); return isFinite(n) ? n : 0; }
+function setTaxRegReadout(id, html) { var el = $(id); if (el) el.innerHTML = html; }
 
 // Income + appetite level (minus existing car costs) -> target payment + highlights.
 function applyAffordability() {
@@ -838,12 +844,16 @@ function recalcLease() {
     : 'x2400 = APR. Ask the dealer or check Leasehackr forums.';
   var res = scoreLease(inputs);
   if (!res) {
+    setTaxRegReadout('l_taxreg_readout', price > 0 ? 'Tax + registration estimate needs MSRP, money factor, residual, and term.' : 'Tax + registration add-on shows here once a deal is entered.');
     setShare(null);
     $('results').innerHTML = '<div class="empty">' + (note ? '<div class="solvebox" style="text-align:left">' + note + '</div>' : '') +
       'Enter MSRP, ' + (targetOn ? 'target payment' : 'selling price') + ', money factor, residual, and term.</div>';
     return;
   }
   var q = res.quote;
+  var lTaxReg = (taxOn ? (q.monthlyTax * inputs.term + q.capReductionTax + (q.docWithTax - inputs.docFee)) : 0) + inputs.govFees;
+  setTaxRegReadout('l_taxreg_readout', '<b>' + money(lTaxReg) + '</b> estimated tax + registration over the lease' +
+    '<span class="mini">Adds ' + money2(q.monthlyTax) + '/mo in tax' + (inputs.govFees > 0 ? ' + ' + money(inputs.govFees) + ' DMV/reg due upfront' : '') + '.</span>');
   setShare({ type: 'lease', inputs: inputs, q: q, res: res, region: loc ? loc.region : '' });
   renderResult(res, [
     [taxOn ? 'Monthly (with tax)' : 'Monthly (no tax)', money2(q.payment)],
@@ -895,6 +905,13 @@ function recalcFinance() {
   var aprEntered = aprRaw !== '' && isFinite(parseFloat(aprRaw));
   $('f_apr').classList.toggle('req', !aprEntered);
   if (!aprEntered) {
+    var previewPrice = num('f_price');
+    if (previewPrice > 0) {
+      var previewTax = taxOn ? Math.max(0, previewPrice - (tradeCredit ? Math.max(0, num('f_trade')) : 0)) * (taxPct / 100) : 0;
+      var previewDocTax = taxOn ? num('f_doc') * (taxPct / 100) : 0;
+      var previewAdd = previewTax + previewDocTax + govFees;
+      setTaxRegReadout('f_taxreg_readout', '<b>' + money(previewAdd) + '</b> tax + registration added before down/rebates<span class="mini">Sales tax ' + money(previewTax) + ' + DMV/reg ' + money(govFees) + '.</span>');
+    }
     // Don't show any solved figure without an APR.
     if (targetOn && solveFor === 'price') $('f_price').value = '';
     if (targetOn && solveFor === 'down') $('f_down').value = '';
@@ -954,12 +971,18 @@ function recalcFinance() {
   };
   var res = scoreFinance(inputs);
   if (!res) {
+    setTaxRegReadout('l_taxreg_readout', price > 0 ? 'Tax + registration estimate needs MSRP, money factor, residual, and term.' : 'Tax + registration add-on shows here once a deal is entered.');
     setShare(null);
     $('results').innerHTML = '<div class="empty">' + (note ? '<div class="solvebox" style="text-align:left">' + note + '</div>' : '') +
       'Enter the car&rsquo;s price' + (finUsed ? ' and market value' : '') + ' to see the score.</div>';
     return;
   }
   var q = res.quote;
+  var fDocTax = q.docWithTax - inputs.docFee;
+  var fTaxReg = q.salesTax + fDocTax + inputs.govFees;
+  var fOutDoor = inputs.price + q.salesTax + q.docWithTax + inputs.govFees + inputs.addons;
+  setTaxRegReadout('f_taxreg_readout', '<b>' + money(fTaxReg) + '</b> tax + registration added before down/rebates' +
+    '<span class="mini">Sales tax ' + money(q.salesTax) + ' + DMV/reg ' + money(inputs.govFees) + ' + doc tax ' + money(fDocTax) + '. OTD before down/rebates: ' + money(fOutDoor) + '.</span>');
   setShare({ type: 'finance', finUsed: finUsed, region: loc ? loc.region : '', inputs: inputs, q: q, res: res,
     bestBank: bestBank, benchAvg: inputs.benchmarkApr,
     affLabel: (aff.income > 0 && aff.level) ? AFFORDABILITY[aff.level].label : '',
