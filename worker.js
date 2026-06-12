@@ -58,6 +58,10 @@ const PAGE_HTML = `<!doctype html>
   .wrap { max-width: 460px; margin: 0 auto; padding: 18px 14px 56px; }
   h1 { font-size: 22px; margin: 0; letter-spacing: -0.02em; }
   .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 6px; }
+  .topline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .new-btn { padding: 9px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+  .new-btn:active { background: var(--line); }
+  .prewizard .new-btn { display: none; }
   .brand-logo { width: 40px; height: 40px; border-radius: 10px; flex: none; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
   .sub { color: var(--muted); margin: 0 0 16px; font-size: 13px; line-height: 1.4; }
   .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -177,6 +181,7 @@ const PAGE_HTML = `<!doctype html>
   .wlabel small { color: var(--muted); font-weight: 600; }
   .choicegrid { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .choicegrid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .choicegrid.five { grid-template-columns: 1fr 1fr; }
   .choice { padding: 12px 9px; border-radius: 12px; border: 1px solid var(--line); background: #171a21; color: var(--text); cursor: pointer; text-align: center; font-weight: 850; font-size: 13px; }
   .choice small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 650; }
   .choice.on { border-color: var(--accent); background: rgba(244,129,32,0.18); color: var(--accent); }
@@ -186,6 +191,8 @@ const PAGE_HTML = `<!doctype html>
   .wizard-summary { margin-top: 13px; background: #0f1115; border: 1px solid var(--line); border-radius: 13px; padding: 12px; }
   .wizard-summary .big { font-size: 24px; color: var(--accent); font-weight: 950; letter-spacing: -0.02em; }
   .wizard-summary .muted { color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .target-range { width: 100%; accent-color: var(--accent); padding: 0 !important; border: none !important; margin: 12px 0 3px; }
+  .range-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
   .wizard-nav { display: flex; gap: 8px; margin-top: 12px; }
   .wizard-nav .back-btn { flex: 0.72; padding: 14px; border-radius: 13px; border: 1px solid var(--line); background: var(--card2); color: var(--muted); font-size: 14px; font-weight: 850; cursor: pointer; }
   .start-btn { flex: 1.4; width: 100%; padding: 15px; border-radius: 13px; border: none; background: var(--accent); color: #14100b; font-size: 16px; font-weight: 950; cursor: pointer; }
@@ -196,7 +203,7 @@ const PAGE_HTML = `<!doctype html>
 </head>
 <body>
 <div class="wrap prewizard" id="app_wrap">
-  <div class="brand"><img class="brand-logo" src="/icon.png" alt="Car Deal Gauge" width="46" height="46"><h1>Car Deal Gauge</h1></div>
+  <div class="topline"><div class="brand"><img class="brand-logo" src="/icon.png" alt="Car Deal Gauge" width="46" height="46"><h1>Car Deal Gauge</h1></div><button class="new-btn" id="new_wizard" type="button">Start new</button></div>
   <p class="sub">Score any car deal 0-100. Enter your income and the dealer's numbers; tax, DMV fees, and market APR auto-fill from your ZIP and credit.</p>
 
   <div class="card wizard" id="wizard-card">
@@ -228,7 +235,14 @@ const PAGE_HTML = `<!doctype html>
       </div>
       <div class="wstep" data-step="3">
         <div class="wlabel">4. What's your credit score?</div>
-        <div class="field"><input id="wiz_credit" type="number" inputmode="numeric" placeholder="720"></div>
+        <div class="choicegrid five" id="wiz_credit_choices">
+          <button class="choice" type="button" data-score="580">Poor<small>580</small></button>
+          <button class="choice" type="button" data-score="640">Fair<small>640</small></button>
+          <button class="choice" type="button" data-score="700">Good<small>700</small></button>
+          <button class="choice" type="button" data-score="760">Great<small>760</small></button>
+          <button class="choice" type="button" data-score="820">Perfect<small>820</small></button>
+        </div>
+        <div class="field" style="margin-top:10px"><input id="wiz_credit" type="number" inputmode="numeric" placeholder="or type exact score"></div>
       </div>
       <div class="wstep" data-step="4">
         <div class="wlabel">5. What monthly payment feels right? <small>customizable</small></div>
@@ -241,12 +255,14 @@ const PAGE_HTML = `<!doctype html>
           <div class="muted">Suggested target payment after current cars</div>
           <div class="big" id="wiz_target_big">—</div>
           <div class="muted" id="wiz_avg_note">Enter income, current car costs, and credit to see the target and market average.</div>
-          <div class="field" style="margin:10px 0 0"><label>Want less or more? Override target payment</label><input id="wiz_target" type="number" step="10" placeholder="optional"></div>
+          <input class="target-range" id="wiz_target_range" type="range" min="0" max="2000" step="10" value="0">
+          <div class="range-labels"><span>lower</span><span>tier target</span><span>higher</span></div>
+          <div class="field" style="margin:10px 0 0"><label>Want less or more? Override target payment</label><input id="wiz_target" type="number" inputmode="numeric" step="10" placeholder="optional"></div>
         </div>
       </div>
       <div class="wstep" data-step="5">
         <div class="wlabel">6. What are you comfortable putting down?</div>
-        <div class="field"><input id="wiz_down" type="number" step="100" placeholder="0 or skip"></div>
+        <div class="field"><input id="wiz_down" type="number" inputmode="numeric" step="100" placeholder="0 or skip"></div>
       </div>
       <div class="wstep" data-step="6">
         <div class="wlabel">7. What's your ZIP code?</div>
@@ -973,6 +989,14 @@ var wizardCompleted = false;
 var wizStep = 0;
 var WIZ_TOTAL_STEPS = 8;
 
+function creditBandFromScore(score) {
+  if (score >= 800) return 'perfect';
+  if (score >= 740) return 'great';
+  if (score >= 670) return 'good';
+  if (score >= 580) return 'fair';
+  return 'poor';
+}
+
 function creditTierFromScore(score) {
   if (score >= 781) return 'superprime';
   if (score >= 661) return 'prime';
@@ -990,13 +1014,17 @@ function aprFromCredit(score, used, term) {
 
 function hasWizardManualTarget() { return $('wiz_target').value.trim() !== '' && num('wiz_target') > 0; }
 
-function selectedWizardTarget() {
-  var manual = num('wiz_target');
-  if (manual > 0) return manual;
+function wizardTierTarget() {
   var income = parseMoney('wiz_income');
   var existing = parseMoney('wiz_existing');
   if (income <= 0) return 0;
   return affordabilityPayment(income, wizLevel, existing);
+}
+
+function selectedWizardTarget() {
+  var manual = num('wiz_target');
+  if (manual > 0) return manual;
+  return wizardTierTarget();
 }
 
 function updateWizardChoices(rootId, attr, val) {
@@ -1013,7 +1041,14 @@ function updateWizard() {
   var existing = parseMoney('wiz_existing');
   var score = num('wiz_credit');
   var target = selectedWizardTarget();
+  var tierTarget = wizardTierTarget();
   var manualTarget = hasWizardManualTarget();
+  var creditBand = score > 0 ? creditBandFromScore(score) : '';
+  var cnodes = document.querySelectorAll('#wiz_credit_choices .choice');
+  for (var ci = 0; ci < cnodes.length; ci++) cnodes[ci].classList.toggle('on', cnodes[ci].textContent.toLowerCase().indexOf(creditBand) === 0);
+  var rangeMax = Math.max(1000, Math.round(Math.max(tierTarget, target, 500) * 1.65 / 10) * 10);
+  $('wiz_target_range').max = rangeMax;
+  $('wiz_target_range').value = target > 0 ? target : 0;
   $('wiz_target_big').textContent = target > 0 ? money(target) + '/mo' + (manualTarget ? ' custom' : '') : '—';
   var used = wizDeal === 'used';
   var isFinance = wizDeal !== 'lease';
@@ -1030,7 +1065,7 @@ function updateWizard() {
     var apr = aprFromCredit(score, used, isFinance ? numOr('f_term', 60) : 60);
     if (isFinance && apr.avg != null) {
       note += 'Credit maps to ' + apr.tier + '; bank average ~' + apr.avg.toFixed(1) + '% APR';
-      if (apr.best != null) note += ', top banks ~' + apr.best.toFixed(1) + '%';
+      if (apr.best != null) note += ', strong-credit target ~' + apr.best.toFixed(1) + '%';
       note += '.';
     } else {
       note += 'Credit maps to ' + apr.tier + '. Lease money factor still comes from the dealer worksheet.';
@@ -1095,7 +1130,8 @@ function runWizard() {
     if (score > 0) {
       var apr = aprFromCredit(score, wizDeal === 'used', numOr('f_term', 60));
       $('f_tier').value = apr.tier;
-      if (apr.avg != null) $('f_apr').value = apr.avg;
+      if (apr.best != null) $('f_apr').value = apr.best;
+      else if (apr.avg != null) $('f_apr').value = apr.avg;
       $('f_bench_auto').checked = true;
     }
     fillFromWizardVehicle('f');
@@ -1127,6 +1163,22 @@ function advanceWizard() {
   }
 }
 
+
+function startNewWizard() {
+  wizardCompleted = false;
+  wizStep = 0;
+  ['wiz_income','wiz_existing','wiz_credit','wiz_target','wiz_down','wiz_vehicle'].forEach(function (id) { $(id).value = ''; });
+  $('wiz_zip').value = $('f_zip').value || $('l_zip').value || '92618';
+  wizDeal = 'lease';
+  wizLevel = 'comfortable';
+  try { localStorage.removeItem('qcc_v2'); } catch (e) {}
+  $('wizard-card').classList.remove('hidden');
+  $('app_wrap').classList.add('prewizard');
+  renderWizardStep();
+  updateWizard();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function wireWizard() {
   populateVehicles('wiz_vehicle');
   $('wiz_zip').value = $('f_zip').value || $('l_zip').value || '92618';
@@ -1134,9 +1186,13 @@ function wireWizard() {
   for (var i = 0; i < dnodes.length; i++) dnodes[i].addEventListener('click', function () { wizDeal = this.getAttribute('data-deal'); updateWizard(); advanceWizard(); });
   var lnodes = document.querySelectorAll('#wiz_level_choices .choice');
   for (var j = 0; j < lnodes.length; j++) lnodes[j].addEventListener('click', function () { wizLevel = this.getAttribute('data-level'); $('wiz_target').value = ''; updateWizard(); });
+  var creditNodes = document.querySelectorAll('#wiz_credit_choices .choice');
+  for (var cn = 0; cn < creditNodes.length; cn++) creditNodes[cn].addEventListener('click', function () { $('wiz_credit').value = this.getAttribute('data-score'); updateWizard(); advanceWizard(); });
   ['wiz_income','wiz_existing','wiz_credit','wiz_target','wiz_down','wiz_zip','wiz_vehicle'].forEach(function (id) { $(id).addEventListener('input', updateWizard); $(id).addEventListener('change', updateWizard); });
+  $('wiz_target_range').addEventListener('input', function () { $('wiz_target').value = this.value; updateWizard(); });
   $('wiz_next').addEventListener('click', advanceWizard);
   $('wiz_back').addEventListener('click', function () { if (wizStep > 0) { wizStep -= 1; renderWizardStep(); updateWizard(); } });
+  $('new_wizard').addEventListener('click', startNewWizard);
   $('wiz_toggle').addEventListener('click', function () {
     var hide = !$('wiz_body').classList.contains('hidden');
     $('wiz_body').classList.toggle('hidden', hide);
