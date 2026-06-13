@@ -795,7 +795,7 @@ function populateVehicles(id, filterFn) {
     var o = document.createElement('option');
     o.value = String(i);
     var vehicleLabel = id === 'wiz_vehicle' ? (v.mk + ' ' + v.md) : v.md;
-    o.textContent = vehicleLabel + (v.used && !/\(used\)/i.test(v.md) ? ' (used)' : '') + ' — $' + v.msrp.toLocaleString('en-US') + (id === 'wiz_vehicle' && v.band ? ' · ' + v.band : '');
+    o.textContent = vehicleLabel + (v.used && !/\(used\)/i.test(v.md) ? ' (used)' : '') + ' — $' + v.msrp.toLocaleString('en-US') + (v.band ? ' · ' + v.band : '');
     grp.appendChild(o);
     count += 1;
     if (String(i) === current) kept = true;
@@ -803,6 +803,35 @@ function populateVehicles(id, filterFn) {
   if (kept) sel.value = current;
   else sel.value = '';
   return count;
+}
+
+function contextualFinanceVehicleFilter(v) {
+  if (finUsed && !v.used) return false;
+  if (!finUsed && v.used) return false;
+  var target = num('f_target');
+  var down = num('f_down');
+  var price = num('f_price');
+  var msrp = num('f_msrp');
+  var pool = Math.max(price, msrp, down + target * 45);
+  if (!(target > 0 || down > 0 || price > 0 || msrp > 0)) return true;
+  if (!finUsed) {
+    if (pool >= 85000) return v.msrp >= Math.max(60000, pool * 0.55) && v.msrp <= Math.max(125000, pool * 1.45);
+    return v.msrp <= Math.max(85000, pool * 1.65);
+  }
+  // Used mode: once the shopper is in a high-payment/high-price pool, show supercar/exotic
+  // candidates only. No Acura/A4 filler next to a $200k solved price.
+  if (pool >= 110000 || target >= 1000 || down >= 50000) {
+    var floor = Math.max(100000, pool * 0.50);
+    var ceiling = Math.max(target >= 1200 ? 360000 : 180000, pool * 1.45);
+    return v.msrp >= floor && v.msrp <= ceiling && (v.band === 'exotic' || v.msrp >= 100000);
+  }
+  if (pool > 0) return v.msrp <= Math.max(100000, pool * 1.75) && v.band !== 'exotic';
+  return true;
+}
+
+function refreshMainVehiclePickers() {
+  populateVehicles('l_vehicle', function (v) { return !v.used && v.lease !== false; });
+  populateVehicles('f_vehicle', contextualFinanceVehicleFilter);
 }
 
 function estimateWizardPayment(v) {
@@ -1130,6 +1159,7 @@ function recalcFinance() {
 
 function recalc() {
   if (mode === 'lease') recalcLease(); else recalcFinance();
+  refreshMainVehiclePickers();
   save();
 }
 
@@ -1639,8 +1669,7 @@ $('f_reset').addEventListener('click', function () {
 });
 
 // Vehicle pickers — populate from inventory and fill on choice.
-populateVehicles('l_vehicle');
-populateVehicles('f_vehicle');
+refreshMainVehiclePickers();
 wireWizard();
 $('l_vehicle').addEventListener('change', function () {
   var x = $('l_vehicle').value; if (x === '') { recalc(); return; }

@@ -348,7 +348,7 @@ test('vehicle inventory is well-formed', () => {
   assert.ok(VEHICLES.length >= 20, 'has a decent roster');
   for (const v of VEHICLES) {
     assert.ok(v.mk && v.md, 'make + model present');
-    assert.ok(v.msrp > 5000 && v.msrp < (v.used ? 300000 : 200000), 'plausible MSRP: ' + v.md);
+    assert.ok(v.msrp > 5000 && v.msrp < (v.used ? 450000 : 200000), 'plausible MSRP: ' + v.md);
     assert.ok(v.mf >= 0 && v.mf < 0.01, 'plausible money factor: ' + v.md);
     assert.ok(v.res > 30 && v.res < 80, 'plausible residual: ' + v.md);
   }
